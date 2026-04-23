@@ -1,34 +1,56 @@
 const conversionMap = {
   temp: {
-    convert(value, unit) {
-      if (unit === 'C') {
-        return { value: value * (9 / 5) + 32, unit: 'F' };
+    toBase(value, fromUnit) {
+      if (fromUnit === 'C') {
+        return value;
       }
-      return { value: (value - 32) * (5 / 9), unit: 'C' };
+      return (value - 32) * (5 / 9);
+    },
+    fromBase(value, toUnit) {
+      if (toUnit === 'C') {
+        return value;
+      }
+      return value * (9 / 5) + 32;
     }
   },
   airflow: {
-    convert(value, unit) {
-      if (unit === 'CFM') {
-        return { value: value * 1.699, unit: 'CMH' };
-      }
-      return { value: value / 1.699, unit: 'CFM' };
-    }
-  },
-  cooling: {
-    convert(value, unit) {
-      if (unit === 'RT') {
-        return { value: value * 3.517, unit: 'kW' };
-      }
-      return { value: value / 3.517, unit: 'RT' };
+    toBase(value, fromUnit) {
+      const toM3s = {
+        CFM: 0.000471947,
+        CMH: 1 / 3600,
+        'm3/s': 1,
+        'L/s': 0.001
+      };
+      return value * toM3s[fromUnit];
+    },
+    fromBase(value, toUnit) {
+      const fromM3s = {
+        CFM: 1 / 0.000471947,
+        CMH: 3600,
+        'm3/s': 1,
+        'L/s': 1000
+      };
+      return value * fromM3s[toUnit];
     }
   },
   pressure: {
-    convert(value, unit) {
-      if (unit === 'Pa') {
-        return { value: value / 9.80665, unit: 'mmAq' };
-      }
-      return { value: value * 9.80665, unit: 'Pa' };
+    toBase(value, fromUnit) {
+      const toPa = {
+        Pa: 1,
+        kPa: 1000,
+        mmAq: 9.80665,
+        bar: 100000
+      };
+      return value * toPa[fromUnit];
+    },
+    fromBase(value, toUnit) {
+      const fromPa = {
+        Pa: 1,
+        kPa: 1 / 1000,
+        mmAq: 1 / 9.80665,
+        bar: 1 / 100000
+      };
+      return value * fromPa[toUnit];
     }
   }
 };
@@ -43,7 +65,8 @@ function formatNumber(value) {
 document.querySelectorAll('.card').forEach((card) => {
   const type = card.dataset.type;
   const input = card.querySelector('input');
-  const select = card.querySelector('select');
+  const fromSelect = card.querySelector('[data-role="from-unit"]');
+  const toSelect = card.querySelector('[data-role="to-unit"]');
   const result = card.querySelector('.result');
 
   function update() {
@@ -60,10 +83,13 @@ document.querySelectorAll('.card').forEach((card) => {
       return;
     }
 
-    const converted = conversionMap[type].convert(value, select.value);
-    result.textContent = `Result: ${formatNumber(converted.value)} ${converted.unit}`;
+    const converter = conversionMap[type];
+    const baseValue = converter.toBase(value, fromSelect.value);
+    const convertedValue = converter.fromBase(baseValue, toSelect.value);
+    result.textContent = `Result: ${formatNumber(convertedValue)} ${toSelect.value}`;
   }
 
   input.addEventListener('input', update);
-  select.addEventListener('change', update);
+  fromSelect.addEventListener('change', update);
+  toSelect.addEventListener('change', update);
 });
