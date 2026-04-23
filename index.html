@@ -66,6 +66,16 @@
         color: #374151;
         min-height: 1.4em;
       }
+
+      .result-list {
+        margin: 0;
+        padding-left: 18px;
+        color: #374151;
+      }
+
+      .result-list li {
+        margin: 6px 0;
+      }
     </style>
   </head>
   <body>
@@ -102,16 +112,11 @@
               <option value="L/s">L/s</option>
             </select>
           </div>
-          <div class="row">
-            <span></span>
-            <select data-role="to-unit">
-              <option value="CMH">CMH</option>
-              <option value="CFM">CFM</option>
-              <option value="m3/s">m3/s</option>
-              <option value="L/s">L/s</option>
-            </select>
-          </div>
-          <div class="result">Result: -</div>
+          <ul class="result-list" data-role="result-list">
+            <li>CMH: -</li>
+            <li>m3/s: -</li>
+            <li>L/s: -</li>
+          </ul>
         </article>
 
         <article class="card" data-type="pressure">
@@ -125,16 +130,11 @@
               <option value="bar">bar</option>
             </select>
           </div>
-          <div class="row">
-            <span></span>
-            <select data-role="to-unit">
-              <option value="kPa">kPa</option>
-              <option value="Pa">Pa</option>
-              <option value="mmAq">mmAq</option>
-              <option value="bar">bar</option>
-            </select>
-          </div>
-          <div class="result">Result: -</div>
+          <ul class="result-list" data-role="result-list">
+            <li>kPa: -</li>
+            <li>mmAq: -</li>
+            <li>bar: -</li>
+          </ul>
         </article>
       </section>
     </main>
