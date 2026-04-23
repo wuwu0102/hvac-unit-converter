@@ -55,6 +55,11 @@ const conversionMap = {
   }
 };
 
+const multiOutputUnits = {
+  airflow: ['CMH', 'm3/s', 'L/s'],
+  pressure: ['kPa', 'mmAq', 'bar']
+};
+
 function formatNumber(value) {
   if (!Number.isFinite(value)) {
     return '-';
@@ -68,28 +73,57 @@ document.querySelectorAll('.card').forEach((card) => {
   const fromSelect = card.querySelector('[data-role="from-unit"]');
   const toSelect = card.querySelector('[data-role="to-unit"]');
   const result = card.querySelector('.result');
+  const resultList = card.querySelector('[data-role="result-list"]');
 
   function update() {
     const raw = input.value;
 
     if (raw.trim() === '') {
-      result.textContent = 'Result: -';
+      if (resultList) {
+        resultList.querySelectorAll('li').forEach((item) => {
+          const unit = item.textContent.split(':')[0];
+          item.textContent = `${unit}: -`;
+        });
+      } else {
+        result.textContent = 'Result: -';
+      }
       return;
     }
 
     const value = Number(raw);
     if (Number.isNaN(value)) {
-      result.textContent = 'Result: Invalid input';
+      if (resultList) {
+        resultList.querySelectorAll('li').forEach((item) => {
+          const unit = item.textContent.split(':')[0];
+          item.textContent = `${unit}: Invalid input`;
+        });
+      } else {
+        result.textContent = 'Result: Invalid input';
+      }
       return;
     }
 
     const converter = conversionMap[type];
     const baseValue = converter.toBase(value, fromSelect.value);
+
+    if (resultList) {
+      const outputUnits = multiOutputUnits[type];
+      resultList.querySelectorAll('li').forEach((item, index) => {
+        const unit = outputUnits[index];
+        const convertedValue = converter.fromBase(baseValue, unit);
+        item.textContent = `${unit}: ${formatNumber(convertedValue)}`;
+      });
+      return;
+    }
+
     const convertedValue = converter.fromBase(baseValue, toSelect.value);
     result.textContent = `Result: ${formatNumber(convertedValue)} ${toSelect.value}`;
   }
 
   input.addEventListener('input', update);
   fromSelect.addEventListener('change', update);
-  toSelect.addEventListener('change', update);
+
+  if (toSelect) {
+    toSelect.addEventListener('change', update);
+  }
 });
