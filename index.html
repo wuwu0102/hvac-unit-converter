@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HVAC Unit Converter</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Arial, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        padding: 24px;
+        background: #f5f7fb;
+        color: #1f2937;
+      }
+
+      .container {
+        max-width: 840px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        margin-bottom: 20px;
+        font-size: 2rem;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 16px;
+      }
+
+      .card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        padding: 16px;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+      }
+
+      .card h2 {
+        margin: 0 0 12px;
+        font-size: 1.1rem;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+
+      input,
+      select {
+        padding: 8px 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 0.95rem;
+      }
+
+      .result {
+        font-size: 0.95rem;
+        color: #374151;
+        min-height: 1.4em;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <h1>HVAC Unit Converter</h1>
+      <section class="grid">
+        <article class="card" data-type="temp">
+          <h2>Temperature (C ↔ F)</h2>
+          <div class="row">
+            <input type="number" step="any" placeholder="Enter value" />
+            <select>
+              <option value="C">C</option>
+              <option value="F">F</option>
+            </select>
+          </div>
+          <div class="result">Result: -</div>
+        </article>
+
+        <article class="card" data-type="airflow">
+          <h2>Airflow (CFM ↔ CMH)</h2>
+          <div class="row">
+            <input type="number" step="any" placeholder="Enter value" />
+            <select>
+              <option value="CFM">CFM</option>
+              <option value="CMH">CMH</option>
+            </select>
+          </div>
+          <div class="result">Result: -</div>
+        </article>
+
+        <article class="card" data-type="cooling">
+          <h2>Cooling Capacity (RT ↔ kW)</h2>
+          <div class="row">
+            <input type="number" step="any" placeholder="Enter value" />
+            <select>
+              <option value="RT">RT</option>
+              <option value="kW">kW</option>
+            </select>
+          </div>
+          <div class="result">Result: -</div>
+        </article>
+
+        <article class="card" data-type="pressure">
+          <h2>Pressure (Pa ↔ mmAq)</h2>
+          <div class="row">
+            <input type="number" step="any" placeholder="Enter value" />
+            <select>
+              <option value="Pa">Pa</option>
+              <option value="mmAq">mmAq</option>
+            </select>
+          </div>
+          <div class="result">Result: -</div>
+        </article>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
