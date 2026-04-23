@@ -48,7 +48,7 @@
 
       .row {
         display: grid;
-        grid-template-columns: 1fr auto;
+        grid-template-columns: 1fr 1fr;
         gap: 8px;
         margin-bottom: 10px;
       }
@@ -73,48 +73,65 @@
       <h1>HVAC Unit Converter</h1>
       <section class="grid">
         <article class="card" data-type="temp">
-          <h2>Temperature (C ↔ F)</h2>
+          <h2>Temperature</h2>
           <div class="row">
             <input type="number" step="any" placeholder="Enter value" />
-            <select>
+            <select data-role="from-unit">
               <option value="C">C</option>
               <option value="F">F</option>
+            </select>
+          </div>
+          <div class="row">
+            <span></span>
+            <select data-role="to-unit">
+              <option value="F">F</option>
+              <option value="C">C</option>
             </select>
           </div>
           <div class="result">Result: -</div>
         </article>
 
         <article class="card" data-type="airflow">
-          <h2>Airflow (CFM ↔ CMH)</h2>
+          <h2>Airflow</h2>
           <div class="row">
             <input type="number" step="any" placeholder="Enter value" />
-            <select>
+            <select data-role="from-unit">
               <option value="CFM">CFM</option>
               <option value="CMH">CMH</option>
+              <option value="m3/s">m3/s</option>
+              <option value="L/s">L/s</option>
             </select>
           </div>
-          <div class="result">Result: -</div>
-        </article>
-
-        <article class="card" data-type="cooling">
-          <h2>Cooling Capacity (RT ↔ kW)</h2>
           <div class="row">
-            <input type="number" step="any" placeholder="Enter value" />
-            <select>
-              <option value="RT">RT</option>
-              <option value="kW">kW</option>
+            <span></span>
+            <select data-role="to-unit">
+              <option value="CMH">CMH</option>
+              <option value="CFM">CFM</option>
+              <option value="m3/s">m3/s</option>
+              <option value="L/s">L/s</option>
             </select>
           </div>
           <div class="result">Result: -</div>
         </article>
 
         <article class="card" data-type="pressure">
-          <h2>Pressure (Pa ↔ mmAq)</h2>
+          <h2>Pressure</h2>
           <div class="row">
             <input type="number" step="any" placeholder="Enter value" />
-            <select>
+            <select data-role="from-unit">
+              <option value="Pa">Pa</option>
+              <option value="kPa">kPa</option>
+              <option value="mmAq">mmAq</option>
+              <option value="bar">bar</option>
+            </select>
+          </div>
+          <div class="row">
+            <span></span>
+            <select data-role="to-unit">
+              <option value="kPa">kPa</option>
               <option value="Pa">Pa</option>
               <option value="mmAq">mmAq</option>
+              <option value="bar">bar</option>
             </select>
           </div>
           <div class="result">Result: -</div>
