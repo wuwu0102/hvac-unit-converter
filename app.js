@@ -84,6 +84,7 @@ const unitMap = {
 };
 
 const SMALL_PIPE_MAX_VELOCITY = 1.2;
+const COMMON_MIN_VELOCITY = 0.6;
 const DEFAULT_GENERAL_MAX_VELOCITY = 3.0;
 const WATER_DENSITY = 998;
 
@@ -233,11 +234,14 @@ function initializeDpFlowCard(card) {
   }
 
   function resetDpResult() {
-    updateDpResultRow(dpResult, '約略流量（LPM）', '-');
-    updateDpResultRow(dpResult, '約略流量（L/s）', '-');
-    updateDpResultRow(dpResult, '約略流速（m/s）', '-');
+    updateDpResultRow(dpResult, '理想壓差粗估流量（LPM）', '-');
+    updateDpResultRow(dpResult, '理想壓差粗估流量（L/s）', '-');
+    updateDpResultRow(dpResult, '理想壓差粗估流速（m/s）', '-');
+    updateDpResultRow(dpResult, '建議合理流量區間（LPM）', '-');
+    updateDpResultRow(dpResult, '建議合理流速區間（m/s）', '-');
     updateDpResultRow(dpResult, '使用管徑', '-');
-    updateDpResultRow(dpResult, '備註', '僅供快速粗估');
+    updateDpResultRow(dpResult, '判定', '-');
+    updateDpResultRow(dpResult, '備註', '僅供快速初估，正式值仍應以設備資料、實測或壓損曲線為準');
   }
 
   function updateDpFlow() {
@@ -267,12 +271,27 @@ function initializeDpFlowCard(card) {
     const diameterM = pipe.innerDiameterMm / 1000;
     const area = Math.PI * (diameterM ** 2) / 4;
     const flowM3s = area * velocity;
+    const numericA = Number.parseInt(pipe.a, 10);
+    const maxReasonableVelocity = numericA <= 40 ? SMALL_PIPE_MAX_VELOCITY : DEFAULT_GENERAL_MAX_VELOCITY;
+    const minReasonableVelocity = COMMON_MIN_VELOCITY;
+    const minReasonableFlowLpm = area * minReasonableVelocity * 60000;
+    const maxReasonableFlowLpm = area * maxReasonableVelocity * 60000;
 
-    updateDpResultRow(dpResult, '約略流量（LPM）', formatNumber(flowM3s * 60000));
-    updateDpResultRow(dpResult, '約略流量（L/s）', formatNumber(flowM3s * 1000));
-    updateDpResultRow(dpResult, '約略流速（m/s）', formatNumber(velocity));
+    let judgment = '理想粗估值落在常用流速範圍內';
+    if (velocity > maxReasonableVelocity) {
+      judgment = '理想粗估值偏大，超出常用流速範圍';
+    } else if (velocity < minReasonableVelocity) {
+      judgment = '理想粗估值偏低，低於常用流速範圍';
+    }
+
+    updateDpResultRow(dpResult, '理想壓差粗估流量（LPM）', formatNumber(flowM3s * 60000));
+    updateDpResultRow(dpResult, '理想壓差粗估流量（L/s）', formatNumber(flowM3s * 1000));
+    updateDpResultRow(dpResult, '理想壓差粗估流速（m/s）', formatNumber(velocity));
+    updateDpResultRow(dpResult, '建議合理流量區間（LPM）', `${formatNumber(minReasonableFlowLpm)} ~ ${formatNumber(maxReasonableFlowLpm)}`);
+    updateDpResultRow(dpResult, '建議合理流速區間（m/s）', `${formatNumber(minReasonableVelocity)} ~ ${formatNumber(maxReasonableVelocity)}`);
     updateDpResultRow(dpResult, '使用管徑', `${pipe.a} / ${pipe.inchDn}`);
-    updateDpResultRow(dpResult, '備註', '僅供快速粗估');
+    updateDpResultRow(dpResult, '判定', judgment);
+    updateDpResultRow(dpResult, '備註', '僅供快速初估，正式值仍應以設備資料、實測或壓損曲線為準');
   }
 
   dpInput.addEventListener('input', updateDpFlow);
