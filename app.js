@@ -101,6 +101,13 @@ const dpToPaMap = {
   psi: 6894.76
 };
 
+
+function getReasonableVelocityRangeByPipeA(pipeA) {
+  const numericA = Number.parseInt(pipeA, 10);
+  const minVelocity = COMMON_MIN_VELOCITY;
+  const maxVelocity = numericA >= 50 ? DEFAULT_GENERAL_MAX_VELOCITY : SMALL_PIPE_MAX_VELOCITY;
+  return { minVelocity, maxVelocity };
+}
 const pipeSizeList = [
   { a: '15A', inchDn: '1/2" / DN15', innerDiameterMm: 15.8 },
   { a: '20A', inchDn: '3/4" / DN20', innerDiameterMm: 20.9 },
@@ -186,8 +193,8 @@ function initializePipeSizingCard(card) {
       const diameterM = pipe.innerDiameterMm / 1000;
       const area = Math.PI * (diameterM ** 2) / 4;
       const velocity = flowM3s / area;
-      const numericA = Number.parseInt(pipe.a, 10);
-      const maxAllowed = numericA <= 40 ? SMALL_PIPE_MAX_VELOCITY : generalMaxVelocity;
+      const { maxVelocity } = getReasonableVelocityRangeByPipeA(pipe.a);
+      const maxAllowed = Number.parseInt(pipe.a, 10) >= 50 ? generalMaxVelocity : maxVelocity;
       return velocity <= maxAllowed;
     });
 
@@ -271,9 +278,7 @@ function initializeDpFlowCard(card) {
     const diameterM = pipe.innerDiameterMm / 1000;
     const area = Math.PI * (diameterM ** 2) / 4;
     const flowM3s = area * velocity;
-    const numericA = Number.parseInt(pipe.a, 10);
-    const maxReasonableVelocity = numericA <= 40 ? SMALL_PIPE_MAX_VELOCITY : DEFAULT_GENERAL_MAX_VELOCITY;
-    const minReasonableVelocity = COMMON_MIN_VELOCITY;
+    const { minVelocity: minReasonableVelocity, maxVelocity: maxReasonableVelocity } = getReasonableVelocityRangeByPipeA(pipe.a);
     const minReasonableFlowLpm = area * minReasonableVelocity * 60000;
     const maxReasonableFlowLpm = area * maxReasonableVelocity * 60000;
 
