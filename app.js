@@ -1,5 +1,3 @@
-console.log('app.js loaded');
-
 const conversionMap = {
   temp: {
     toBase(value, fromUnit) {
@@ -273,7 +271,6 @@ function initializePipeSizingCard(card) {
 
 function initializeCard(card) {
   const type = card?.dataset?.type || 'unknown';
-  console.log(`init card: ${type}`);
 
   if (type === 'pipe-sizing') {
     return initializePipeSizingCard(card);
@@ -312,7 +309,6 @@ function initializeCard(card) {
   function update() {
     const raw = input.value ?? '';
     const selectedUnit = fromSelect.value ?? '';
-    console.log('update called', type, raw, selectedUnit);
 
     debugState.lastUpdatedCard = type;
     debugState.lastInputValue = raw === '' ? '(empty)' : raw;
@@ -325,7 +321,7 @@ function initializeCard(card) {
         renderList(resultList, outputUnits, () => '-');
       } else if (result) {
         const targetUnit = selectedUnit === 'C' ? 'F' : selectedUnit === 'F' ? 'C' : selectedUnit === 'm/s' ? 'ft/s' : 'm/s';
-        result.textContent = `${targetUnit}: -`;
+        result.textContent = `${targetUnit}：-`;
       }
       return;
     }
@@ -334,9 +330,9 @@ function initializeCard(card) {
     if (Number.isNaN(value)) {
       if (resultList && unitMap[type]) {
         const outputUnits = unitMap[type].filter((unit) => unit !== selectedUnit);
-        renderList(resultList, outputUnits, () => 'Invalid input');
+        renderList(resultList, outputUnits, () => '輸入無效');
       } else if (result) {
-        result.textContent = 'Invalid input';
+        result.textContent = '輸入無效';
       }
       return;
     }
@@ -354,7 +350,7 @@ function initializeCard(card) {
       if (result) {
         const targetUnit = selectedUnit === 'C' ? 'F' : selectedUnit === 'F' ? 'C' : selectedUnit === 'm/s' ? 'ft/s' : 'm/s';
         const convertedValue = converter.fromBase(baseValue, targetUnit);
-        result.textContent = `${targetUnit}: ${formatNumber(convertedValue)}`;
+        result.textContent = `${targetUnit}：${formatNumber(convertedValue)}`;
       }
     } catch (error) {
       const message = `${type} card update error: ${error instanceof Error ? error.message : String(error)}`;
@@ -372,8 +368,6 @@ function initializeCard(card) {
 
 function startApp() {
   const cards = Array.from(document.querySelectorAll('.card'));
-  console.log(`cards found: ${cards.length}`);
-
   let initializedCount = 0;
 
   cards.forEach((card) => {
