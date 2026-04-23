@@ -83,11 +83,15 @@ function formatNumber(value) {
   if (!Number.isFinite(value)) {
     return '-';
   }
-  return Number(value.toFixed(4)).toString();
+  return value.toFixed(4);
 }
 
 function renderList(resultList, units, textByUnit) {
-  resultList.innerHTML = units.map((unit) => `<li>${unit}: ${textByUnit(unit)}</li>`).join('');
+  resultList.innerHTML = units
+    .map((unit) => {
+      return `<li class="result-row"><span class="result-unit">${unit}</span><span class="result-colon">:</span><span class="result-value">${textByUnit(unit)}</span></li>`;
+    })
+    .join('');
 }
 
 function updateDebugPanel() {

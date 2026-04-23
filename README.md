@@ -1,7 +1,7 @@
-# hvac-unit-converter V0.1
+# hvac-unit-converter V0.2
 HVAC 專用單位轉換工具。
 
-V0.1-debug hotfix for render issue
+V0.2 - UI alignment/readability improvement
 
 ## 支援單位
 - Temperature（C / F）
