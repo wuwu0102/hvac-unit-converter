@@ -76,6 +76,29 @@
       .result-list li {
         margin: 6px 0;
       }
+
+      .debug-panel {
+        margin-top: 20px;
+        background: #111827;
+        color: #e5e7eb;
+        border-radius: 10px;
+        padding: 14px 16px;
+        font-size: 0.9rem;
+      }
+
+      .debug-panel h2 {
+        margin: 0 0 8px;
+        font-size: 1rem;
+      }
+
+      .debug-panel ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      .debug-panel li {
+        margin: 5px 0;
+      }
     </style>
   </head>
   <body>
@@ -125,6 +148,18 @@
           </div>
           <ul class="result-list" data-role="result-list"></ul>
         </article>
+      </section>
+
+      <section class="debug-panel" data-role="debug-panel" aria-live="polite">
+        <h2>Debug Info</h2>
+        <ul>
+          <li>app loaded: <span data-role="debug-app-loaded">false</span></li>
+          <li>cards initialized count: <span data-role="debug-cards-count">0</span></li>
+          <li>last updated card: <span data-role="debug-last-card">-</span></li>
+          <li>last input value: <span data-role="debug-last-value">-</span></li>
+          <li>last selected unit: <span data-role="debug-last-unit">-</span></li>
+          <li>last error: <span data-role="debug-last-error">-</span></li>
+        </ul>
       </section>
     </main>
 
