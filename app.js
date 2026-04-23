@@ -62,6 +62,22 @@ const conversionMap = {
       };
       return value * fromPa[toUnit];
     }
+  },
+  velocity: {
+    toBase(value, fromUnit) {
+      const toMs = {
+        'm/s': 1,
+        'ft/s': 1 / 3.28084
+      };
+      return value * toMs[fromUnit];
+    },
+    fromBase(value, toUnit) {
+      const fromMs = {
+        'm/s': 1,
+        'ft/s': 3.28084
+      };
+      return value * fromMs[toUnit];
+    }
   }
 };
 
@@ -69,6 +85,20 @@ const unitMap = {
   airflow: ['CFM', 'CMH', 'm3/s', 'L/s', 'LPM', 'CMM'],
   pressure: ['Pa', 'kPa', 'mmAq', 'bar', 'psi', 'N/m2']
 };
+
+const pipeSizeList = [
+  { nominal: 'DN15 / 1/2"', innerDiameterMm: 15.8 },
+  { nominal: 'DN20 / 3/4"', innerDiameterMm: 20.9 },
+  { nominal: 'DN25 / 1"', innerDiameterMm: 26.6 },
+  { nominal: 'DN32 / 1-1/4"', innerDiameterMm: 35.1 },
+  { nominal: 'DN40 / 1-1/2"', innerDiameterMm: 40.9 },
+  { nominal: 'DN50 / 2"', innerDiameterMm: 52.5 },
+  { nominal: 'DN65 / 2-1/2"', innerDiameterMm: 62.7 },
+  { nominal: 'DN80 / 3"', innerDiameterMm: 77.9 },
+  { nominal: 'DN100 / 4"', innerDiameterMm: 102.3 },
+  { nominal: 'DN125 / 5"', innerDiameterMm: 128.2 },
+  { nominal: 'DN150 / 6"', innerDiameterMm: 154.1 }
+];
 
 const debugState = {
   appLoaded: true,
@@ -92,6 +122,23 @@ function renderList(resultList, units, textByUnit) {
       return `<li class="result-row"><span class="result-unit">${unit}</span><span class="result-colon">:</span><span class="result-value">${textByUnit(unit)}</span></li>`;
     })
     .join('');
+}
+
+function updatePipeResultRow(pipeResult, label, value) {
+  const rows = Array.from(pipeResult.querySelectorAll('li'));
+  const row = rows.find((item) => {
+    const key = item.querySelector('.pipe-result-key')?.textContent || '';
+    return key.trim() === label;
+  });
+
+  if (!row) {
+    return;
+  }
+
+  const valueEl = row.querySelector('.pipe-result-value');
+  if (valueEl) {
+    valueEl.textContent = value;
+  }
 }
 
 function updateDebugPanel() {
@@ -126,9 +173,99 @@ function logMissingElement(type, elementName) {
   setLastError(message);
 }
 
+function initializePipeSizingCard(card) {
+  const flowInput = card.querySelector('[data-role="flow-input"]');
+  const flowUnit = card.querySelector('[data-role="flow-unit"]');
+  const maxVelocityInput = card.querySelector('[data-role="max-velocity"]');
+  const pipeResult = card.querySelector('[data-role="pipe-result"]');
+
+  if (!flowInput) {
+    logMissingElement('pipe-sizing', 'flow input');
+    return false;
+  }
+
+  if (!flowUnit) {
+    logMissingElement('pipe-sizing', 'flow-unit selector');
+    return false;
+  }
+
+  if (!maxVelocityInput) {
+    logMissingElement('pipe-sizing', 'max velocity input');
+    return false;
+  }
+
+  if (!pipeResult) {
+    logMissingElement('pipe-sizing', 'pipe result container');
+    return false;
+  }
+
+  function updatePipeSizing() {
+    const rawFlow = flowInput.value ?? '';
+    const selectedUnit = flowUnit.value ?? '';
+    const rawMaxVelocity = maxVelocityInput.value ?? '';
+
+    debugState.lastUpdatedCard = 'pipe-sizing';
+    debugState.lastInputValue = rawFlow === '' ? '(empty)' : rawFlow;
+    debugState.lastSelectedUnit = selectedUnit || '-';
+    updateDebugPanel();
+
+    if (rawFlow.trim() === '' || rawMaxVelocity.trim() === '') {
+      updatePipeResultRow(pipeResult, 'Recommended size', '-');
+      updatePipeResultRow(pipeResult, 'Approx. inside diameter', '-');
+      updatePipeResultRow(pipeResult, 'Estimated velocity', '-');
+      return;
+    }
+
+    const flowValue = Number(rawFlow);
+    const maxVelocity = Number(rawMaxVelocity);
+
+    if (!Number.isFinite(flowValue) || !Number.isFinite(maxVelocity) || flowValue <= 0 || maxVelocity <= 0) {
+      updatePipeResultRow(pipeResult, 'Recommended size', 'Invalid input');
+      updatePipeResultRow(pipeResult, 'Approx. inside diameter', '-');
+      updatePipeResultRow(pipeResult, 'Estimated velocity', '-');
+      return;
+    }
+
+    const flowM3s = conversionMap.airflow.toBase(flowValue, selectedUnit);
+
+    const matchedPipe = pipeSizeList.find((pipe) => {
+      const diameterM = pipe.innerDiameterMm / 1000;
+      const area = Math.PI * (diameterM ** 2) / 4;
+      const velocity = flowM3s / area;
+      return velocity <= maxVelocity;
+    });
+
+    if (!matchedPipe) {
+      updatePipeResultRow(pipeResult, 'Recommended size', 'Flow too high for current built-in size list');
+      updatePipeResultRow(pipeResult, 'Approx. inside diameter', '-');
+      updatePipeResultRow(pipeResult, 'Estimated velocity', '-');
+      return;
+    }
+
+    const matchedDiameterM = matchedPipe.innerDiameterMm / 1000;
+    const matchedArea = Math.PI * (matchedDiameterM ** 2) / 4;
+    const estimatedVelocity = flowM3s / matchedArea;
+
+    updatePipeResultRow(pipeResult, 'Recommended size', matchedPipe.nominal);
+    updatePipeResultRow(pipeResult, 'Approx. inside diameter', `${matchedPipe.innerDiameterMm.toFixed(1)} mm`);
+    updatePipeResultRow(pipeResult, 'Estimated velocity', `${formatNumber(estimatedVelocity)} m/s`);
+  }
+
+  flowInput.addEventListener('input', updatePipeSizing);
+  flowUnit.addEventListener('change', updatePipeSizing);
+  maxVelocityInput.addEventListener('input', updatePipeSizing);
+  updatePipeSizing();
+
+  return true;
+}
+
 function initializeCard(card) {
   const type = card?.dataset?.type || 'unknown';
   console.log(`init card: ${type}`);
+
+  if (type === 'pipe-sizing') {
+    return initializePipeSizingCard(card);
+  }
 
   const input = card.querySelector('input');
   const fromSelect = card.querySelector('[data-role="from-unit"]');
@@ -150,7 +287,7 @@ function initializeCard(card) {
     return false;
   }
 
-  if (type === 'temp' && !result) {
+  if ((type === 'temp' || type === 'velocity') && !result) {
     logMissingElement(type, 'result');
     return false;
   }
@@ -175,7 +312,7 @@ function initializeCard(card) {
         const outputUnits = unitMap[type].filter((unit) => unit !== selectedUnit);
         renderList(resultList, outputUnits, () => '-');
       } else if (result) {
-        const targetUnit = selectedUnit === 'C' ? 'F' : 'C';
+        const targetUnit = selectedUnit === 'C' ? 'F' : selectedUnit === 'F' ? 'C' : selectedUnit === 'm/s' ? 'ft/s' : 'm/s';
         result.textContent = `${targetUnit}: -`;
       }
       return;
@@ -203,7 +340,7 @@ function initializeCard(card) {
       }
 
       if (result) {
-        const targetUnit = selectedUnit === 'C' ? 'F' : 'C';
+        const targetUnit = selectedUnit === 'C' ? 'F' : selectedUnit === 'F' ? 'C' : selectedUnit === 'm/s' ? 'ft/s' : 'm/s';
         const convertedValue = converter.fromBase(baseValue, targetUnit);
         result.textContent = `${targetUnit}: ${formatNumber(convertedValue)}`;
       }
