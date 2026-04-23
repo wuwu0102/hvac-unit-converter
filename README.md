@@ -1,7 +1,7 @@
-# hvac-unit-converter V0.3
+# hvac-unit-converter V0.4
 HVAC 專用單位轉換工具。
 
-V0.3 - velocity conversion and water pipe quick sizing update
+V0.4 - 水管管徑建議修正與中文化顯示
 
 ## 支援單位
 - Temperature（C / F）
@@ -10,5 +10,6 @@ V0.3 - velocity conversion and water pipe quick sizing update
 - Velocity（m/s / ft/s）
 
 ## 新增功能
-- Velocity conversion
-- Water pipe size suggestion for galvanized steel pipe (quick sizing)
+- Water Pipe Size Suggestion 改為「水流量 -> 水管管徑建議」
+- 顯示全面中文化，介面更直觀
+- 建議結果直接顯示 A / inch / DN 對照

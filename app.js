@@ -86,18 +86,27 @@ const unitMap = {
   pressure: ['Pa', 'kPa', 'mmAq', 'bar', 'psi', 'N/m2']
 };
 
+const WATER_PIPE_MAX_VELOCITY = 3.0;
+
+const flowToM3sMap = {
+  LPM: 1 / 60000,
+  'L/s': 0.001,
+  'm3/h': 1 / 3600,
+  GPM: 0.0000630902
+};
+
 const pipeSizeList = [
-  { nominal: 'DN15 / 1/2"', innerDiameterMm: 15.8 },
-  { nominal: 'DN20 / 3/4"', innerDiameterMm: 20.9 },
-  { nominal: 'DN25 / 1"', innerDiameterMm: 26.6 },
-  { nominal: 'DN32 / 1-1/4"', innerDiameterMm: 35.1 },
-  { nominal: 'DN40 / 1-1/2"', innerDiameterMm: 40.9 },
-  { nominal: 'DN50 / 2"', innerDiameterMm: 52.5 },
-  { nominal: 'DN65 / 2-1/2"', innerDiameterMm: 62.7 },
-  { nominal: 'DN80 / 3"', innerDiameterMm: 77.9 },
-  { nominal: 'DN100 / 4"', innerDiameterMm: 102.3 },
-  { nominal: 'DN125 / 5"', innerDiameterMm: 128.2 },
-  { nominal: 'DN150 / 6"', innerDiameterMm: 154.1 }
+  { a: '15A', inchDn: '1/2" / DN15', innerDiameterMm: 15.8 },
+  { a: '20A', inchDn: '3/4" / DN20', innerDiameterMm: 20.9 },
+  { a: '25A', inchDn: '1" / DN25', innerDiameterMm: 26.6 },
+  { a: '32A', inchDn: '1-1/4" / DN32', innerDiameterMm: 35.1 },
+  { a: '40A', inchDn: '1-1/2" / DN40', innerDiameterMm: 40.9 },
+  { a: '50A', inchDn: '2" / DN50', innerDiameterMm: 52.5 },
+  { a: '65A', inchDn: '2-1/2" / DN65', innerDiameterMm: 62.7 },
+  { a: '80A', inchDn: '3" / DN80', innerDiameterMm: 77.9 },
+  { a: '100A', inchDn: '4" / DN100', innerDiameterMm: 102.3 },
+  { a: '125A', inchDn: '5" / DN125', innerDiameterMm: 128.2 },
+  { a: '150A', inchDn: '6" / DN150', innerDiameterMm: 154.1 }
 ];
 
 const debugState = {
@@ -176,7 +185,6 @@ function logMissingElement(type, elementName) {
 function initializePipeSizingCard(card) {
   const flowInput = card.querySelector('[data-role="flow-input"]');
   const flowUnit = card.querySelector('[data-role="flow-unit"]');
-  const maxVelocityInput = card.querySelector('[data-role="max-velocity"]');
   const pipeResult = card.querySelector('[data-role="pipe-result"]');
 
   if (!flowInput) {
@@ -189,11 +197,6 @@ function initializePipeSizingCard(card) {
     return false;
   }
 
-  if (!maxVelocityInput) {
-    logMissingElement('pipe-sizing', 'max velocity input');
-    return false;
-  }
-
   if (!pipeResult) {
     logMissingElement('pipe-sizing', 'pipe result container');
     return false;
@@ -202,43 +205,50 @@ function initializePipeSizingCard(card) {
   function updatePipeSizing() {
     const rawFlow = flowInput.value ?? '';
     const selectedUnit = flowUnit.value ?? '';
-    const rawMaxVelocity = maxVelocityInput.value ?? '';
 
     debugState.lastUpdatedCard = 'pipe-sizing';
     debugState.lastInputValue = rawFlow === '' ? '(empty)' : rawFlow;
     debugState.lastSelectedUnit = selectedUnit || '-';
     updateDebugPanel();
 
-    if (rawFlow.trim() === '' || rawMaxVelocity.trim() === '') {
-      updatePipeResultRow(pipeResult, 'Recommended size', '-');
-      updatePipeResultRow(pipeResult, 'Approx. inside diameter', '-');
-      updatePipeResultRow(pipeResult, 'Estimated velocity', '-');
+    if (rawFlow.trim() === '') {
+      updatePipeResultRow(pipeResult, '建議管徑', '-');
+      updatePipeResultRow(pipeResult, '參考尺寸', '-');
+      updatePipeResultRow(pipeResult, '估算內徑', '-');
+      updatePipeResultRow(pipeResult, '估算流速', '-');
+      updatePipeResultRow(pipeResult, '設計條件', '-');
+      updatePipeResultRow(pipeResult, '判定', '-');
       return;
     }
 
     const flowValue = Number(rawFlow);
-    const maxVelocity = Number(rawMaxVelocity);
 
-    if (!Number.isFinite(flowValue) || !Number.isFinite(maxVelocity) || flowValue <= 0 || maxVelocity <= 0) {
-      updatePipeResultRow(pipeResult, 'Recommended size', 'Invalid input');
-      updatePipeResultRow(pipeResult, 'Approx. inside diameter', '-');
-      updatePipeResultRow(pipeResult, 'Estimated velocity', '-');
+    if (!Number.isFinite(flowValue) || flowValue <= 0) {
+      updatePipeResultRow(pipeResult, '建議管徑', '-');
+      updatePipeResultRow(pipeResult, '參考尺寸', '-');
+      updatePipeResultRow(pipeResult, '估算內徑', '-');
+      updatePipeResultRow(pipeResult, '估算流速', '-');
+      updatePipeResultRow(pipeResult, '設計條件', '-');
+      updatePipeResultRow(pipeResult, '判定', '-');
       return;
     }
 
-    const flowM3s = conversionMap.airflow.toBase(flowValue, selectedUnit);
+    const flowM3s = flowValue * flowToM3sMap[selectedUnit];
 
     const matchedPipe = pipeSizeList.find((pipe) => {
       const diameterM = pipe.innerDiameterMm / 1000;
       const area = Math.PI * (diameterM ** 2) / 4;
       const velocity = flowM3s / area;
-      return velocity <= maxVelocity;
+      return velocity <= WATER_PIPE_MAX_VELOCITY;
     });
 
     if (!matchedPipe) {
-      updatePipeResultRow(pipeResult, 'Recommended size', 'Flow too high for current built-in size list');
-      updatePipeResultRow(pipeResult, 'Approx. inside diameter', '-');
-      updatePipeResultRow(pipeResult, 'Estimated velocity', '-');
+      updatePipeResultRow(pipeResult, '建議管徑', '目前內建管徑範圍不足，請選更大管徑');
+      updatePipeResultRow(pipeResult, '參考尺寸', '-');
+      updatePipeResultRow(pipeResult, '估算內徑', '-');
+      updatePipeResultRow(pipeResult, '估算流速', '-');
+      updatePipeResultRow(pipeResult, '設計條件', `水 / 一般鍍鋅鋼管 / 最大流速 ${WATER_PIPE_MAX_VELOCITY.toFixed(1)} m/s`);
+      updatePipeResultRow(pipeResult, '判定', '不符合流速上限');
       return;
     }
 
@@ -246,14 +256,16 @@ function initializePipeSizingCard(card) {
     const matchedArea = Math.PI * (matchedDiameterM ** 2) / 4;
     const estimatedVelocity = flowM3s / matchedArea;
 
-    updatePipeResultRow(pipeResult, 'Recommended size', matchedPipe.nominal);
-    updatePipeResultRow(pipeResult, 'Approx. inside diameter', `${matchedPipe.innerDiameterMm.toFixed(1)} mm`);
-    updatePipeResultRow(pipeResult, 'Estimated velocity', `${formatNumber(estimatedVelocity)} m/s`);
+    updatePipeResultRow(pipeResult, '建議管徑', matchedPipe.a);
+    updatePipeResultRow(pipeResult, '參考尺寸', matchedPipe.inchDn);
+    updatePipeResultRow(pipeResult, '估算內徑', `${matchedPipe.innerDiameterMm.toFixed(1)} mm`);
+    updatePipeResultRow(pipeResult, '估算流速', `${formatNumber(estimatedVelocity)} m/s`);
+    updatePipeResultRow(pipeResult, '設計條件', `水 / 一般鍍鋅鋼管 / 最大流速 ${WATER_PIPE_MAX_VELOCITY.toFixed(1)} m/s`);
+    updatePipeResultRow(pipeResult, '判定', '符合流速上限');
   }
 
   flowInput.addEventListener('input', updatePipeSizing);
   flowUnit.addEventListener('change', updatePipeSizing);
-  maxVelocityInput.addEventListener('input', updatePipeSizing);
   updatePipeSizing();
 
   return true;
