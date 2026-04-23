@@ -19,7 +19,9 @@ const conversionMap = {
         CFM: 0.000471947,
         CMH: 1 / 3600,
         'm3/s': 1,
-        'L/s': 0.001
+        'L/s': 0.001,
+        LPM: 1 / 60000,
+        CMM: 1 / 60
       };
       return value * toM3s[fromUnit];
     },
@@ -28,7 +30,9 @@ const conversionMap = {
         CFM: 1 / 0.000471947,
         CMH: 3600,
         'm3/s': 1,
-        'L/s': 1000
+        'L/s': 1000,
+        LPM: 60000,
+        CMM: 60
       };
       return value * fromM3s[toUnit];
     }
@@ -39,7 +43,9 @@ const conversionMap = {
         Pa: 1,
         kPa: 1000,
         mmAq: 9.80665,
-        bar: 100000
+        bar: 100000,
+        psi: 6894.76,
+        'N/m2': 1
       };
       return value * toPa[fromUnit];
     },
@@ -48,16 +54,18 @@ const conversionMap = {
         Pa: 1,
         kPa: 1 / 1000,
         mmAq: 1 / 9.80665,
-        bar: 1 / 100000
+        bar: 1 / 100000,
+        psi: 1 / 6894.76,
+        'N/m2': 1
       };
       return value * fromPa[toUnit];
     }
   }
 };
 
-const multiOutputUnits = {
-  airflow: ['CMH', 'm3/s', 'L/s'],
-  pressure: ['kPa', 'mmAq', 'bar']
+const unitMap = {
+  airflow: ['CFM', 'CMH', 'm3/s', 'L/s', 'LPM', 'CMM'],
+  pressure: ['Pa', 'kPa', 'mmAq', 'bar', 'psi', 'N/m2']
 };
 
 function formatNumber(value) {
@@ -67,11 +75,14 @@ function formatNumber(value) {
   return Number(value.toFixed(4)).toString();
 }
 
+function renderList(resultList, units, textByUnit) {
+  resultList.innerHTML = units.map((unit) => `<li>${unit}: ${textByUnit(unit)}</li>`).join('');
+}
+
 document.querySelectorAll('.card').forEach((card) => {
   const type = card.dataset.type;
   const input = card.querySelector('input');
   const fromSelect = card.querySelector('[data-role="from-unit"]');
-  const toSelect = card.querySelector('[data-role="to-unit"]');
   const result = card.querySelector('.result');
   const resultList = card.querySelector('[data-role="result-list"]');
 
@@ -80,12 +91,11 @@ document.querySelectorAll('.card').forEach((card) => {
 
     if (raw.trim() === '') {
       if (resultList) {
-        resultList.querySelectorAll('li').forEach((item) => {
-          const unit = item.textContent.split(':')[0];
-          item.textContent = `${unit}: -`;
-        });
+        const outputUnits = unitMap[type].filter((unit) => unit !== fromSelect.value);
+        renderList(resultList, outputUnits, () => '-');
       } else {
-        result.textContent = 'Result: -';
+        const targetUnit = fromSelect.value === 'C' ? 'F' : 'C';
+        result.textContent = `${targetUnit}: -`;
       }
       return;
     }
@@ -93,12 +103,10 @@ document.querySelectorAll('.card').forEach((card) => {
     const value = Number(raw);
     if (Number.isNaN(value)) {
       if (resultList) {
-        resultList.querySelectorAll('li').forEach((item) => {
-          const unit = item.textContent.split(':')[0];
-          item.textContent = `${unit}: Invalid input`;
-        });
+        const outputUnits = unitMap[type].filter((unit) => unit !== fromSelect.value);
+        renderList(resultList, outputUnits, () => 'Invalid input');
       } else {
-        result.textContent = 'Result: Invalid input';
+        result.textContent = 'Invalid input';
       }
       return;
     }
@@ -107,23 +115,17 @@ document.querySelectorAll('.card').forEach((card) => {
     const baseValue = converter.toBase(value, fromSelect.value);
 
     if (resultList) {
-      const outputUnits = multiOutputUnits[type];
-      resultList.querySelectorAll('li').forEach((item, index) => {
-        const unit = outputUnits[index];
-        const convertedValue = converter.fromBase(baseValue, unit);
-        item.textContent = `${unit}: ${formatNumber(convertedValue)}`;
-      });
+      const outputUnits = unitMap[type].filter((unit) => unit !== fromSelect.value);
+      renderList(resultList, outputUnits, (unit) => formatNumber(converter.fromBase(baseValue, unit)));
       return;
     }
 
-    const convertedValue = converter.fromBase(baseValue, toSelect.value);
-    result.textContent = `Result: ${formatNumber(convertedValue)} ${toSelect.value}`;
+    const targetUnit = fromSelect.value === 'C' ? 'F' : 'C';
+    const convertedValue = converter.fromBase(baseValue, targetUnit);
+    result.textContent = `${targetUnit}: ${formatNumber(convertedValue)}`;
   }
 
   input.addEventListener('input', update);
   fromSelect.addEventListener('change', update);
-
-  if (toSelect) {
-    toSelect.addEventListener('change', update);
-  }
+  update();
 });

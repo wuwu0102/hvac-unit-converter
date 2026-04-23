@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HVAC Unit Converter</title>
+    <title>HVAC Unit Converter V0.1</title>
     <style>
       :root {
         color-scheme: light;
@@ -80,7 +80,7 @@
   </head>
   <body>
     <main class="container">
-      <h1>HVAC Unit Converter</h1>
+      <h1>HVAC Unit Converter V0.1</h1>
       <section class="grid">
         <article class="card" data-type="temp">
           <h2>Temperature</h2>
@@ -89,13 +89,6 @@
             <select data-role="from-unit">
               <option value="C">C</option>
               <option value="F">F</option>
-            </select>
-          </div>
-          <div class="row">
-            <span></span>
-            <select data-role="to-unit">
-              <option value="F">F</option>
-              <option value="C">C</option>
             </select>
           </div>
           <div class="result">Result: -</div>
@@ -110,13 +103,11 @@
               <option value="CMH">CMH</option>
               <option value="m3/s">m3/s</option>
               <option value="L/s">L/s</option>
+              <option value="LPM">LPM (L/min)</option>
+              <option value="CMM">CMM (m3/min)</option>
             </select>
           </div>
-          <ul class="result-list" data-role="result-list">
-            <li>CMH: -</li>
-            <li>m3/s: -</li>
-            <li>L/s: -</li>
-          </ul>
+          <ul class="result-list" data-role="result-list"></ul>
         </article>
 
         <article class="card" data-type="pressure">
@@ -128,13 +119,11 @@
               <option value="kPa">kPa</option>
               <option value="mmAq">mmAq</option>
               <option value="bar">bar</option>
+              <option value="psi">psi</option>
+              <option value="N/m2">N/m2</option>
             </select>
           </div>
-          <ul class="result-list" data-role="result-list">
-            <li>kPa: -</li>
-            <li>mmAq: -</li>
-            <li>bar: -</li>
-          </ul>
+          <ul class="result-list" data-role="result-list"></ul>
         </article>
       </section>
     </main>
