@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HVAC Unit Converter V0.1</title>
+    <title>HVAC Unit Converter V0.2</title>
     <style>
       :root {
         color-scheme: light;
@@ -69,12 +69,31 @@
 
       .result-list {
         margin: 0;
-        padding-left: 18px;
+        padding: 0;
+        list-style: none;
         color: #374151;
       }
 
-      .result-list li {
+      .result-row {
+        display: grid;
+        grid-template-columns: 72px 12px minmax(0, 1fr);
+        gap: 8px;
         margin: 6px 0;
+        align-items: baseline;
+      }
+
+      .result-unit {
+        width: 72px;
+      }
+
+      .result-colon {
+        width: 12px;
+        text-align: center;
+      }
+
+      .result-value {
+        text-align: right;
+        font-family: monospace;
       }
 
       .debug-panel {
@@ -103,7 +122,7 @@
   </head>
   <body>
     <main class="container">
-      <h1>HVAC Unit Converter V0.1</h1>
+      <h1>HVAC Unit Converter V0.2</h1>
       <section class="grid">
         <article class="card" data-type="temp">
           <h2>Temperature</h2>
