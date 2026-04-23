@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HVAC Unit Converter V0.6</title>
+    <title>HVAC Unit Converter V0.7</title>
     <style>
       :root {
         color-scheme: light;
@@ -153,7 +153,7 @@
   </head>
   <body>
     <main class="container">
-      <h1>HVAC Unit Converter V0.6</h1>
+      <h1>HVAC Unit Converter V0.7</h1>
       <section class="grid">
         <article class="card" data-type="temp">
           <h2>溫度</h2>
@@ -241,13 +241,25 @@
         </article>
 
         <article class="card" data-type="dp-flow">
-          <h2>壓差估算流量（粗估）</h2>
+          <h2>壓差估算流量（設備修正）</h2>
           <div class="row">
             <input type="number" step="any" data-role="dp-input" placeholder="請輸入壓差" />
             <select data-role="dp-unit">
               <option value="kPa">kPa</option>
               <option value="bar">bar</option>
               <option value="psi">psi</option>
+            </select>
+          </div>
+          <p class="form-label">設備參考點</p>
+          <div class="row">
+            <input type="number" step="any" data-role="dp-ref-flow" value="300" placeholder="參考流量（LPM）" />
+            <input type="number" step="any" data-role="dp-ref-pressure" value="30" placeholder="參考壓損" />
+          </div>
+          <div class="row">
+            <select data-role="dp-ref-unit">
+              <option value="kPa">kPa</option>
+              <option value="mAq">mAq</option>
+              <option value="bar">bar</option>
             </select>
           </div>
           <div class="row">
@@ -267,13 +279,12 @@
           </div>
           <ul class="dp-result" data-role="dp-result">
             <li><span class="dp-result-key">理想壓差粗估流量（LPM）</span><span class="result-colon">:</span><span class="dp-result-value">-</span></li>
-            <li><span class="dp-result-key">理想壓差粗估流量（L/s）</span><span class="result-colon">:</span><span class="dp-result-value">-</span></li>
-            <li><span class="dp-result-key">理想壓差粗估流速（m/s）</span><span class="result-colon">:</span><span class="dp-result-value">-</span></li>
-            <li><span class="dp-result-key">建議合理流量區間（LPM）</span><span class="result-colon">:</span><span class="dp-result-value">-</span></li>
-            <li><span class="dp-result-key">建議合理流速區間（m/s）</span><span class="result-colon">:</span><span class="dp-result-value">-</span></li>
+            <li><span class="dp-result-key">設備修正流量（LPM）</span><span class="result-colon">:</span><span class="dp-result-value">-</span></li>
+            <li><span class="dp-result-key">設備修正流量（L/s）</span><span class="result-colon">:</span><span class="dp-result-value">-</span></li>
             <li><span class="dp-result-key">使用管徑</span><span class="result-colon">:</span><span class="dp-result-value">-</span></li>
+            <li><span class="dp-result-key">設備參考條件</span><span class="result-colon">:</span><span class="dp-result-value">-</span></li>
             <li><span class="dp-result-key">判定</span><span class="result-colon">:</span><span class="dp-result-value">-</span></li>
-            <li><span class="dp-result-key">備註</span><span class="result-colon">:</span><span class="dp-result-value">僅供快速初估，正式值仍應以設備資料、實測或壓損曲線為準</span></li>
+            <li><span class="dp-result-key">備註</span><span class="result-colon">:</span><span class="dp-result-value">設備修正流量為依壓損平方關係推估，較接近實務，仍建議搭配廠商曲線確認</span></li>
           </ul>
         </article>
       </section>
