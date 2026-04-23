@@ -1,16 +1,10 @@
 const conversionMap = {
   temp: {
     toBase(value, fromUnit) {
-      if (fromUnit === 'C') {
-        return value;
-      }
-      return (value - 32) * (5 / 9);
+      return fromUnit === 'C' ? value : (value - 32) * (5 / 9);
     },
     fromBase(value, toUnit) {
-      if (toUnit === 'C') {
-        return value;
-      }
-      return value * (9 / 5) + 32;
+      return toUnit === 'C' ? value : value * (9 / 5) + 32;
     }
   },
   airflow: {
@@ -65,14 +59,18 @@ const conversionMap = {
     toBase(value, fromUnit) {
       const toMs = {
         'm/s': 1,
-        'ft/s': 1 / 3.28084
+        'ft/s': 1 / 3.28084,
+        'mm/s': 1 / 1000,
+        'cm/s': 1 / 100
       };
       return value * toMs[fromUnit];
     },
     fromBase(value, toUnit) {
       const fromMs = {
         'm/s': 1,
-        'ft/s': 3.28084
+        'ft/s': 3.28084,
+        'mm/s': 1000,
+        'cm/s': 100
       };
       return value * fromMs[toUnit];
     }
@@ -81,16 +79,25 @@ const conversionMap = {
 
 const unitMap = {
   airflow: ['CFM', 'CMH', 'm3/s', 'L/s', 'LPM', 'CMM'],
-  pressure: ['Pa', 'kPa', 'mmAq', 'bar', 'psi', 'N/m2']
+  pressure: ['Pa', 'kPa', 'mmAq', 'bar', 'psi', 'N/m2'],
+  velocity: ['m/s', 'ft/s', 'mm/s', 'cm/s']
 };
 
-const WATER_PIPE_MAX_VELOCITY = 3.0;
+const SMALL_PIPE_MAX_VELOCITY = 1.2;
+const DEFAULT_GENERAL_MAX_VELOCITY = 3.0;
+const WATER_DENSITY = 998;
 
 const flowToM3sMap = {
   LPM: 1 / 60000,
   'L/s': 0.001,
   'm3/h': 1 / 3600,
   GPM: 0.0000630902
+};
+
+const dpToPaMap = {
+  kPa: 1000,
+  bar: 100000,
+  psi: 6894.76
 };
 
 const pipeSizeList = [
@@ -107,127 +114,68 @@ const pipeSizeList = [
   { a: '150A', inchDn: '6" / DN150', innerDiameterMm: 154.1 }
 ];
 
-const debugState = {
-  appLoaded: true,
-  cardsInitializedCount: 0,
-  lastUpdatedCard: '-',
-  lastInputValue: '-',
-  lastSelectedUnit: '-',
-  lastError: '-'
-};
-
 function formatNumber(value) {
-  if (!Number.isFinite(value)) {
-    return '-';
-  }
-  return value.toFixed(4);
+  return Number.isFinite(value) ? value.toFixed(4) : '-';
 }
 
 function renderList(resultList, units, textByUnit) {
   resultList.innerHTML = units
-    .map((unit) => {
-      return `<li class="result-row"><span class="result-unit">${unit}</span><span class="result-colon">:</span><span class="result-value">${textByUnit(unit)}</span></li>`;
-    })
+    .map((unit) => `<li class="result-row"><span class="result-unit">${unit}</span><span class="result-colon">:</span><span class="result-value">${textByUnit(unit)}</span></li>`)
     .join('');
+}
+
+function resetPipeResult(pipeResult) {
+  updatePipeResultRow(pipeResult, '建議管徑', '-');
+  updatePipeResultRow(pipeResult, '參考尺寸', '-');
+  updatePipeResultRow(pipeResult, '估算內徑', '-');
+  updatePipeResultRow(pipeResult, '估算流速', '-');
+  updatePipeResultRow(pipeResult, '設計條件', '-');
+  updatePipeResultRow(pipeResult, '判定', '-');
 }
 
 function updatePipeResultRow(pipeResult, label, value) {
   const rows = Array.from(pipeResult.querySelectorAll('li'));
-  const row = rows.find((item) => {
-    const key = item.querySelector('.pipe-result-key')?.textContent || '';
-    return key.trim() === label;
-  });
-
-  if (!row) {
-    return;
-  }
-
-  const valueEl = row.querySelector('.pipe-result-value');
+  const row = rows.find((item) => item.querySelector('.pipe-result-key')?.textContent.trim() === label);
+  const valueEl = row?.querySelector('.pipe-result-value');
   if (valueEl) {
     valueEl.textContent = value;
   }
 }
 
-function updateDebugPanel() {
-  const panel = document.querySelector('[data-role="debug-panel"]');
-  if (!panel) {
-    return;
+function updateDpResultRow(dpResult, label, value) {
+  const rows = Array.from(dpResult.querySelectorAll('li'));
+  const row = rows.find((item) => item.querySelector('.dp-result-key')?.textContent.trim() === label);
+  const valueEl = row?.querySelector('.dp-result-value');
+  if (valueEl) {
+    valueEl.textContent = value;
   }
-
-  const appLoadedEl = panel.querySelector('[data-role="debug-app-loaded"]');
-  const countEl = panel.querySelector('[data-role="debug-cards-count"]');
-  const cardEl = panel.querySelector('[data-role="debug-last-card"]');
-  const valueEl = panel.querySelector('[data-role="debug-last-value"]');
-  const unitEl = panel.querySelector('[data-role="debug-last-unit"]');
-  const errorEl = panel.querySelector('[data-role="debug-last-error"]');
-
-  if (appLoadedEl) appLoadedEl.textContent = String(debugState.appLoaded);
-  if (countEl) countEl.textContent = String(debugState.cardsInitializedCount);
-  if (cardEl) cardEl.textContent = debugState.lastUpdatedCard;
-  if (valueEl) valueEl.textContent = debugState.lastInputValue;
-  if (unitEl) unitEl.textContent = debugState.lastSelectedUnit;
-  if (errorEl) errorEl.textContent = debugState.lastError;
-}
-
-function setLastError(message) {
-  debugState.lastError = message;
-  updateDebugPanel();
-}
-
-function logMissingElement(type, elementName) {
-  const message = `${type} card missing ${elementName}`;
-  console.error(message);
-  setLastError(message);
 }
 
 function initializePipeSizingCard(card) {
   const flowInput = card.querySelector('[data-role="flow-input"]');
   const flowUnit = card.querySelector('[data-role="flow-unit"]');
+  const maxVelocityInput = card.querySelector('[data-role="max-velocity-input"]');
   const pipeResult = card.querySelector('[data-role="pipe-result"]');
 
-  if (!flowInput) {
-    logMissingElement('pipe-sizing', 'flow input');
-    return false;
-  }
-
-  if (!flowUnit) {
-    logMissingElement('pipe-sizing', 'flow-unit selector');
-    return false;
-  }
-
-  if (!pipeResult) {
-    logMissingElement('pipe-sizing', 'pipe result container');
+  if (!flowInput || !flowUnit || !maxVelocityInput || !pipeResult) {
     return false;
   }
 
   function updatePipeSizing() {
     const rawFlow = flowInput.value ?? '';
-    const selectedUnit = flowUnit.value ?? '';
-
-    debugState.lastUpdatedCard = 'pipe-sizing';
-    debugState.lastInputValue = rawFlow === '' ? '(empty)' : rawFlow;
-    debugState.lastSelectedUnit = selectedUnit || '-';
-    updateDebugPanel();
+    const selectedUnit = flowUnit.value ?? 'LPM';
+    const rawGeneralMax = maxVelocityInput.value ?? '';
 
     if (rawFlow.trim() === '') {
-      updatePipeResultRow(pipeResult, '建議管徑', '-');
-      updatePipeResultRow(pipeResult, '參考尺寸', '-');
-      updatePipeResultRow(pipeResult, '估算內徑', '-');
-      updatePipeResultRow(pipeResult, '估算流速', '-');
-      updatePipeResultRow(pipeResult, '設計條件', '-');
-      updatePipeResultRow(pipeResult, '判定', '-');
+      resetPipeResult(pipeResult);
       return;
     }
 
     const flowValue = Number(rawFlow);
+    const generalMaxVelocity = Number(rawGeneralMax || DEFAULT_GENERAL_MAX_VELOCITY);
 
-    if (!Number.isFinite(flowValue) || flowValue <= 0) {
-      updatePipeResultRow(pipeResult, '建議管徑', '-');
-      updatePipeResultRow(pipeResult, '參考尺寸', '-');
-      updatePipeResultRow(pipeResult, '估算內徑', '-');
-      updatePipeResultRow(pipeResult, '估算流速', '-');
-      updatePipeResultRow(pipeResult, '設計條件', '-');
-      updatePipeResultRow(pipeResult, '判定', '-');
+    if (!Number.isFinite(flowValue) || flowValue <= 0 || !Number.isFinite(generalMaxVelocity) || generalMaxVelocity <= 0) {
+      resetPipeResult(pipeResult);
       return;
     }
 
@@ -237,15 +185,19 @@ function initializePipeSizingCard(card) {
       const diameterM = pipe.innerDiameterMm / 1000;
       const area = Math.PI * (diameterM ** 2) / 4;
       const velocity = flowM3s / area;
-      return velocity <= WATER_PIPE_MAX_VELOCITY;
+      const numericA = Number.parseInt(pipe.a, 10);
+      const maxAllowed = numericA <= 40 ? SMALL_PIPE_MAX_VELOCITY : generalMaxVelocity;
+      return velocity <= maxAllowed;
     });
+
+    const conditionText = `水 / 一般鍍鋅鋼管 / 小管徑 ${SMALL_PIPE_MAX_VELOCITY.toFixed(1)} m/s、一般上限 ${generalMaxVelocity.toFixed(1)} m/s`;
 
     if (!matchedPipe) {
       updatePipeResultRow(pipeResult, '建議管徑', '目前內建管徑範圍不足，請選更大管徑');
       updatePipeResultRow(pipeResult, '參考尺寸', '-');
       updatePipeResultRow(pipeResult, '估算內徑', '-');
       updatePipeResultRow(pipeResult, '估算流速', '-');
-      updatePipeResultRow(pipeResult, '設計條件', `水 / 一般鍍鋅鋼管 / 最大流速 ${WATER_PIPE_MAX_VELOCITY.toFixed(1)} m/s`);
+      updatePipeResultRow(pipeResult, '設計條件', conditionText);
       updatePipeResultRow(pipeResult, '判定', '不符合流速上限');
       return;
     }
@@ -258,13 +210,75 @@ function initializePipeSizingCard(card) {
     updatePipeResultRow(pipeResult, '參考尺寸', matchedPipe.inchDn);
     updatePipeResultRow(pipeResult, '估算內徑', `${matchedPipe.innerDiameterMm.toFixed(1)} mm`);
     updatePipeResultRow(pipeResult, '估算流速', `${formatNumber(estimatedVelocity)} m/s`);
-    updatePipeResultRow(pipeResult, '設計條件', `水 / 一般鍍鋅鋼管 / 最大流速 ${WATER_PIPE_MAX_VELOCITY.toFixed(1)} m/s`);
+    updatePipeResultRow(pipeResult, '設計條件', conditionText);
     updatePipeResultRow(pipeResult, '判定', '符合流速上限');
   }
 
   flowInput.addEventListener('input', updatePipeSizing);
   flowUnit.addEventListener('change', updatePipeSizing);
+  maxVelocityInput.addEventListener('input', updatePipeSizing);
   updatePipeSizing();
+
+  return true;
+}
+
+function initializeDpFlowCard(card) {
+  const dpInput = card.querySelector('[data-role="dp-input"]');
+  const dpUnit = card.querySelector('[data-role="dp-unit"]');
+  const dpPipeSize = card.querySelector('[data-role="dp-pipe-size"]');
+  const dpResult = card.querySelector('[data-role="dp-result"]');
+
+  if (!dpInput || !dpUnit || !dpPipeSize || !dpResult) {
+    return false;
+  }
+
+  function resetDpResult() {
+    updateDpResultRow(dpResult, '約略流量（LPM）', '-');
+    updateDpResultRow(dpResult, '約略流量（L/s）', '-');
+    updateDpResultRow(dpResult, '約略流速（m/s）', '-');
+    updateDpResultRow(dpResult, '使用管徑', '-');
+    updateDpResultRow(dpResult, '備註', '僅供快速粗估');
+  }
+
+  function updateDpFlow() {
+    const rawDp = dpInput.value ?? '';
+    const selectedDpUnit = dpUnit.value;
+    const selectedPipeA = dpPipeSize.value;
+
+    if (rawDp.trim() === '') {
+      resetDpResult();
+      return;
+    }
+
+    const dpValue = Number(rawDp);
+    if (!Number.isFinite(dpValue) || dpValue <= 0) {
+      resetDpResult();
+      return;
+    }
+
+    const pipe = pipeSizeList.find((item) => item.a === selectedPipeA);
+    if (!pipe) {
+      resetDpResult();
+      return;
+    }
+
+    const dpPa = dpValue * dpToPaMap[selectedDpUnit];
+    const velocity = Math.sqrt((2 * dpPa) / WATER_DENSITY);
+    const diameterM = pipe.innerDiameterMm / 1000;
+    const area = Math.PI * (diameterM ** 2) / 4;
+    const flowM3s = area * velocity;
+
+    updateDpResultRow(dpResult, '約略流量（LPM）', formatNumber(flowM3s * 60000));
+    updateDpResultRow(dpResult, '約略流量（L/s）', formatNumber(flowM3s * 1000));
+    updateDpResultRow(dpResult, '約略流速（m/s）', formatNumber(velocity));
+    updateDpResultRow(dpResult, '使用管徑', `${pipe.a} / ${pipe.inchDn}`);
+    updateDpResultRow(dpResult, '備註', '僅供快速粗估');
+  }
+
+  dpInput.addEventListener('input', updateDpFlow);
+  dpUnit.addEventListener('change', updateDpFlow);
+  dpPipeSize.addEventListener('change', updateDpFlow);
+  updateDpFlow();
 
   return true;
 }
@@ -276,33 +290,16 @@ function initializeCard(card) {
     return initializePipeSizingCard(card);
   }
 
+  if (type === 'dp-flow') {
+    return initializeDpFlowCard(card);
+  }
+
   const input = card.querySelector('input');
   const fromSelect = card.querySelector('[data-role="from-unit"]');
   const result = card.querySelector('.result');
   const resultList = card.querySelector('[data-role="result-list"]');
 
-  if (!conversionMap[type]) {
-    logMissingElement(type, 'valid converter');
-    return false;
-  }
-
-  if (!input) {
-    logMissingElement(type, 'input');
-    return false;
-  }
-
-  if (!fromSelect) {
-    logMissingElement(type, 'from-unit selector');
-    return false;
-  }
-
-  if ((type === 'temp' || type === 'velocity') && !result) {
-    logMissingElement(type, 'result');
-    return false;
-  }
-
-  if ((type === 'airflow' || type === 'pressure') && !resultList) {
-    logMissingElement(type, 'result-list');
+  if (!conversionMap[type] || !input || !fromSelect) {
     return false;
   }
 
@@ -310,52 +307,40 @@ function initializeCard(card) {
     const raw = input.value ?? '';
     const selectedUnit = fromSelect.value ?? '';
 
-    debugState.lastUpdatedCard = type;
-    debugState.lastInputValue = raw === '' ? '(empty)' : raw;
-    debugState.lastSelectedUnit = selectedUnit || '-';
-    updateDebugPanel();
-
     if (raw.trim() === '') {
       if (resultList && unitMap[type]) {
         const outputUnits = unitMap[type].filter((unit) => unit !== selectedUnit);
         renderList(resultList, outputUnits, () => '-');
       } else if (result) {
-        const targetUnit = selectedUnit === 'C' ? 'F' : selectedUnit === 'F' ? 'C' : selectedUnit === 'm/s' ? 'ft/s' : 'm/s';
-        result.textContent = `${targetUnit}：-`;
+        result.textContent = '結果：-';
       }
       return;
     }
 
     const value = Number(raw);
-    if (Number.isNaN(value)) {
+    if (!Number.isFinite(value)) {
       if (resultList && unitMap[type]) {
         const outputUnits = unitMap[type].filter((unit) => unit !== selectedUnit);
-        renderList(resultList, outputUnits, () => '輸入無效');
+        renderList(resultList, outputUnits, () => '-');
       } else if (result) {
-        result.textContent = '輸入無效';
+        result.textContent = '結果：-';
       }
       return;
     }
 
-    try {
-      const converter = conversionMap[type];
-      const baseValue = converter.toBase(value, selectedUnit);
+    const converter = conversionMap[type];
+    const baseValue = converter.toBase(value, selectedUnit);
 
-      if (resultList && unitMap[type]) {
-        const outputUnits = unitMap[type].filter((unit) => unit !== selectedUnit);
-        renderList(resultList, outputUnits, (unit) => formatNumber(converter.fromBase(baseValue, unit)));
-        return;
-      }
+    if (resultList && unitMap[type]) {
+      const outputUnits = unitMap[type].filter((unit) => unit !== selectedUnit);
+      renderList(resultList, outputUnits, (unit) => formatNumber(converter.fromBase(baseValue, unit)));
+      return;
+    }
 
-      if (result) {
-        const targetUnit = selectedUnit === 'C' ? 'F' : selectedUnit === 'F' ? 'C' : selectedUnit === 'm/s' ? 'ft/s' : 'm/s';
-        const convertedValue = converter.fromBase(baseValue, targetUnit);
-        result.textContent = `${targetUnit}：${formatNumber(convertedValue)}`;
-      }
-    } catch (error) {
-      const message = `${type} card update error: ${error instanceof Error ? error.message : String(error)}`;
-      console.error(message);
-      setLastError(message);
+    if (result) {
+      const targetUnit = selectedUnit === 'C' ? 'F' : 'C';
+      const convertedValue = converter.fromBase(baseValue, targetUnit);
+      result.textContent = `${targetUnit}：${formatNumber(convertedValue)}`;
     }
   }
 
@@ -368,24 +353,9 @@ function initializeCard(card) {
 
 function startApp() {
   const cards = Array.from(document.querySelectorAll('.card'));
-  let initializedCount = 0;
-
   cards.forEach((card) => {
-    try {
-      const initialized = initializeCard(card);
-      if (initialized) {
-        initializedCount += 1;
-      }
-    } catch (error) {
-      const type = card?.dataset?.type || 'unknown';
-      const message = `${type} card init error: ${error instanceof Error ? error.message : String(error)}`;
-      console.error(message);
-      setLastError(message);
-    }
+    initializeCard(card);
   });
-
-  debugState.cardsInitializedCount = initializedCount;
-  updateDebugPanel();
 }
 
 if (document.readyState === 'loading') {
