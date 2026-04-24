@@ -102,13 +102,13 @@ const dpToPaMap = {
   mAq: 9806.65
 };
 
-
 function getReasonableVelocityRangeByPipeA(pipeA) {
   const numericA = Number.parseInt(pipeA, 10);
   const minVelocity = COMMON_MIN_VELOCITY;
   const maxVelocity = numericA >= 50 ? DEFAULT_GENERAL_MAX_VELOCITY : SMALL_PIPE_MAX_VELOCITY;
   return { minVelocity, maxVelocity };
 }
+
 const pipeSizeList = [
   { a: '15A', inchDn: '1/2" / DN15', innerDiameterMm: 15.8 },
   { a: '20A', inchDn: '3/4" / DN20', innerDiameterMm: 20.9 },
@@ -167,6 +167,15 @@ function updateDpResultRow(dpResult, label, value) {
   }
 }
 
+function updateAhuResultRow(ahuResult, label, value) {
+  const rows = Array.from(ahuResult.querySelectorAll('li'));
+  const row = rows.find((item) => item.querySelector('.ahu-result-key')?.textContent.trim() === label);
+  const valueEl = row?.querySelector('.ahu-result-value');
+  if (valueEl) {
+    valueEl.textContent = value;
+  }
+}
+
 function initializePipeSizingCard(card) {
   const flowInput = card.querySelector('[data-role="flow-input"]');
   const flowUnit = card.querySelector('[data-role="flow-unit"]');
@@ -206,7 +215,7 @@ function initializePipeSizingCard(card) {
       return velocity <= maxAllowed;
     });
 
-    const conditionText = `水 / 一般鍍鋅鋼管 / 小管徑 ${SMALL_PIPE_MAX_VELOCITY.toFixed(1)} m/s、一般上限 ${generalMaxVelocity.toFixed(1)} m/s`;
+    const conditionText = '水 / 一般鍍鋅鋼管 / 依管徑採不同流速上限';
 
     if (!matchedPipe) {
       updatePipeResultRow(pipeResult, '建議管徑', '目前內建管徑範圍不足，請選更大管徑');
@@ -239,12 +248,12 @@ function initializePipeSizingCard(card) {
 }
 
 function initializeDpFlowCard(card) {
-  const dpInput = card.querySelector('[data-role="dp-input"]');
-  const dpUnit = card.querySelector('[data-role="dp-unit"]');
-  const dpRefFlow = card.querySelector('[data-role="dp-ref-flow"]');
-  const dpRefPressure = card.querySelector('[data-role="dp-ref-pressure"]');
-  const dpRefUnit = card.querySelector('[data-role="dp-ref-unit"]');
-  const dpPipeSize = card.querySelector('[data-role="dp-pipe-size"]');
+  const dpInput = card.querySelector('#dpInput');
+  const dpUnit = card.querySelector('#dpUnit');
+  const dpRefFlow = card.querySelector('#refFlow');
+  const dpRefPressure = card.querySelector('#refPressure');
+  const dpRefUnit = card.querySelector('#refPressureUnit');
+  const dpPipeSize = card.querySelector('#dpPipeSize');
   const dpResult = card.querySelector('[data-role="dp-result"]');
 
   if (!dpInput || !dpUnit || !dpRefFlow || !dpRefPressure || !dpRefUnit || !dpPipeSize || !dpResult) {
@@ -325,6 +334,49 @@ function initializeDpFlowCard(card) {
   return true;
 }
 
+function initializeAhuEstimateCard(card) {
+  const supplyTempInput = card.querySelector('[data-role="ahu-supply-air-temp"]');
+  const systemTypeSelect = card.querySelector('[data-role="ahu-system-type"]');
+  const ahuResult = card.querySelector('[data-role="ahu-result"]');
+
+  if (!supplyTempInput || !systemTypeSelect || !ahuResult) {
+    return false;
+  }
+
+  function updateAhuEstimate() {
+    const rawTemp = supplyTempInput.value ?? '';
+    const systemType = systemTypeSelect.value;
+
+    if (rawTemp.trim() === '') {
+      updateAhuResultRow(ahuResult, '推估區間', '-');
+      return;
+    }
+
+    const supplyTempC = Number(rawTemp);
+    if (!Number.isFinite(supplyTempC)) {
+      updateAhuResultRow(ahuResult, '推估區間', '-');
+      return;
+    }
+
+    if (systemType === 'CHW') {
+      const low = supplyTempC - 7;
+      const high = supplyTempC - 3;
+      updateAhuResultRow(ahuResult, '推估區間', `推估冰水供水溫度：約 ${formatCompactNumber(low)}°C ～ ${formatCompactNumber(high)}°C`);
+      return;
+    }
+
+    const low = supplyTempC - 10;
+    const high = supplyTempC - 5;
+    updateAhuResultRow(ahuResult, '推估區間', `推估冷媒蒸發溫度：約 ${formatCompactNumber(low)}°C ～ ${formatCompactNumber(high)}°C`);
+  }
+
+  supplyTempInput.addEventListener('input', updateAhuEstimate);
+  systemTypeSelect.addEventListener('change', updateAhuEstimate);
+  updateAhuEstimate();
+
+  return true;
+}
+
 function initializeCard(card) {
   const type = card?.dataset?.type || 'unknown';
 
@@ -334,6 +386,10 @@ function initializeCard(card) {
 
   if (type === 'dp-flow') {
     return initializeDpFlowCard(card);
+  }
+
+  if (type === 'ahu-estimate') {
+    return initializeAhuEstimateCard(card);
   }
 
   const input = card.querySelector('input');
