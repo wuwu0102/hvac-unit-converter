@@ -177,16 +177,8 @@ function initializeDpFlowCard(card) {
 
   if (!measuredInput || !measuredUnit || !pipeSelect || !refFlowInput || !refLossInput || !refLossUnit || !result) return false;
 
-  const note = '設備修正流量為依壓損平方關係推估，較接近實務；正式值仍建議依設備選機表或實測確認。';
-
   function reset() {
-    updateResultRow(result, 'dp-key', 'dp-value', '理想壓差粗估流量（LPM）', '-');
-    updateResultRow(result, 'dp-key', 'dp-value', '設備修正流量（LPM）', '-');
-    updateResultRow(result, 'dp-key', 'dp-value', '設備修正流量（L/s）', '-');
-    updateResultRow(result, 'dp-key', 'dp-value', '約略流速（m/s）', '-');
-    updateResultRow(result, 'dp-key', 'dp-value', '使用管徑', '-');
-    updateResultRow(result, 'dp-key', 'dp-value', '判定', '-');
-    updateResultRow(result, 'dp-key', 'dp-value', '備註', note);
+    updateResultRow(result, 'dp-key', 'dp-value', '預估流量（LPM）', '-');
   }
 
   function update() {
@@ -208,29 +200,8 @@ function initializeDpFlowCard(card) {
       return reset();
     }
 
-    const area = getPipeAreaM2(pipe);
-
-    const idealVelocity = Math.sqrt((2 * measuredPa) / 998);
-    const idealFlowM3s = area * idealVelocity;
-    const idealFlowLpm = idealFlowM3s * 60000;
-
     const correctedFlowLpm = refFlow * Math.sqrt(measuredPa / refDpPa);
-    const correctedFlowLs = correctedFlowLpm / 60;
-    const correctedFlowM3s = correctedFlowLpm / 60000;
-    const velocity = correctedFlowM3s / area;
-
-    const limit = Number.parseInt(pipe.a, 10) <= 40 ? 1.2 : 3.0;
-    const judgment = velocity <= limit
-      ? '約略流速在建議範圍內'
-      : '約略流速偏高，請確認設備資料或選用較大管徑';
-
-    updateResultRow(result, 'dp-key', 'dp-value', '理想壓差粗估流量（LPM）', formatNumber(idealFlowLpm));
-    updateResultRow(result, 'dp-key', 'dp-value', '設備修正流量（LPM）', formatNumber(correctedFlowLpm));
-    updateResultRow(result, 'dp-key', 'dp-value', '設備修正流量（L/s）', formatNumber(correctedFlowLs));
-    updateResultRow(result, 'dp-key', 'dp-value', '約略流速（m/s）', formatNumber(velocity));
-    updateResultRow(result, 'dp-key', 'dp-value', '使用管徑', `${pipe.a} / ${pipe.inchDn}`);
-    updateResultRow(result, 'dp-key', 'dp-value', '判定', judgment);
-    updateResultRow(result, 'dp-key', 'dp-value', '備註', note);
+    updateResultRow(result, 'dp-key', 'dp-value', '預估流量（LPM）', formatNumber(correctedFlowLpm));
   }
 
   [measuredInput, measuredUnit, pipeSelect, refFlowInput, refLossInput, refLossUnit].forEach((el) => {
@@ -242,39 +213,11 @@ function initializeDpFlowCard(card) {
   return true;
 }
 
-function initializeAhuTempCard(card) {
-  const raInput = card.querySelector('[data-role="ahu-ra"]');
-  const saInput = card.querySelector('[data-role="ahu-sa"]');
-  const result = card.querySelector('[data-role="ahu-temp-result"]');
-  if (!raInput || !saInput || !result) return false;
-
-  function reset() {
-    updateResultRow(result, 'dp-key', 'dp-value', '溫差 ΔT（°C）', '-');
-    updateResultRow(result, 'dp-key', 'dp-value', '判定', '-');
-  }
-
-  function update() {
-    const ra = Number(raInput.value ?? '');
-    const sa = Number(saInput.value ?? '');
-    if (!Number.isFinite(ra) || !Number.isFinite(sa)) return reset();
-
-    const delta = ra - sa;
-    const judgment = delta > 0 ? '送風低於回風，方向合理' : '請確認量測點或數值';
-    updateResultRow(result, 'dp-key', 'dp-value', '溫差 ΔT（°C）', formatNumber(delta));
-    updateResultRow(result, 'dp-key', 'dp-value', '判定', judgment);
-  }
-
-  [raInput, saInput].forEach((el) => el.addEventListener('input', update));
-  update();
-  return true;
-}
-
 function initializeCard(card) {
   const type = card?.dataset?.type || 'unknown';
 
   if (type === 'pipe-suggest') return initializePipeSuggestCard(card);
   if (type === 'dp-flow') return initializeDpFlowCard(card);
-  if (type === 'ahu-temp') return initializeAhuTempCard(card);
 
   const input = card.querySelector('input');
   const fromSelect = card.querySelector('[data-role="from-unit"]');

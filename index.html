@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HVAC Unit Converter V0.10</title>
+    <title>HVAC Unit Converter V0.12</title>
     <style>
       :root {
         color-scheme: light;
@@ -187,7 +187,7 @@
   </head>
   <body>
     <main class="container">
-      <h1>HVAC Unit Converter V0.10</h1>
+      <h1>HVAC Unit Converter V0.12</h1>
       <section class="grid">
         <article class="card" data-type="temp">
           <h2>溫度</h2>
@@ -282,16 +282,11 @@
           </section>
 
           <section class="result-section">
-            <h3 class="section-title">主要結果</h3>
+            <h3 class="section-title">預估流量</h3>
             <ul class="dp-result" data-role="dp-result">
-              <li><span class="dp-key">理想壓差粗估流量（LPM）</span><span class="result-colon">:</span><span class="dp-value">-</span></li>
-              <li><span class="dp-key">設備修正流量（LPM）</span><span class="result-colon">:</span><span class="dp-value">-</span></li>
-              <li><span class="dp-key">設備修正流量（L/s）</span><span class="result-colon">:</span><span class="dp-value">-</span></li>
-              <li><span class="dp-key">約略流速（m/s）</span><span class="result-colon">:</span><span class="dp-value">-</span></li>
-              <li><span class="dp-key">使用管徑</span><span class="result-colon">:</span><span class="dp-value">-</span></li>
-              <li><span class="dp-key">判定</span><span class="result-colon">:</span><span class="dp-value">-</span></li>
-              <li><span class="dp-key">備註</span><span class="result-colon">:</span><span class="dp-value">設備修正流量為依壓損平方關係推估，較接近實務；正式值仍建議依設備選機表或實測確認。</span></li>
+              <li><span class="dp-key">預估流量（LPM）</span><span class="result-colon">:</span><span class="dp-value">-</span></li>
             </ul>
+            <p class="sub-note">（依壓差平方關係推估）</p>
           </section>
 
           <section class="form-section">
@@ -312,23 +307,6 @@
           </section>
         </article>
 
-        <article class="card" data-type="ahu-temp">
-          <h2>空調箱溫度粗估（AHU）</h2>
-          <section class="form-section">
-            <div class="field">
-              <label class="form-label">回風溫度（°C）</label>
-              <input type="number" step="any" data-role="ahu-ra" placeholder="例如 27" />
-            </div>
-            <div class="field">
-              <label class="form-label">送風溫度（°C）</label>
-              <input type="number" step="any" data-role="ahu-sa" placeholder="例如 14" />
-            </div>
-          </section>
-          <ul class="dp-result" data-role="ahu-temp-result">
-            <li><span class="dp-key">溫差 ΔT（°C）</span><span class="result-colon">:</span><span class="dp-value">-</span></li>
-            <li><span class="dp-key">判定</span><span class="result-colon">:</span><span class="dp-value">-</span></li>
-          </ul>
-        </article>
       </section>
     </main>
 
