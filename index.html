@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HVAC Unit Converter V0.8</title>
+    <title>HVAC Unit Converter V0.9</title>
     <style>
       :root {
         color-scheme: light;
@@ -106,36 +106,36 @@
 
       .result,
       .result-list,
-      .pipe-result,
-      .dp-result,
-      .ahu-result {
+      .flow-velocity-result,
+      .cooling-result,
+      .ahu-interp-result {
         margin: 0;
         padding: 0;
         list-style: none;
       }
 
       .result-row,
-      .pipe-result li,
-      .dp-result li,
-      .ahu-result li {
+      .flow-velocity-result li,
+      .cooling-result li,
+      .ahu-interp-result li {
         display: grid;
-        grid-template-columns: minmax(96px, 1fr) 10px minmax(0, 1.3fr);
+        grid-template-columns: minmax(120px, 1fr) 10px minmax(0, 1.4fr);
         gap: 8px;
-        margin: 7px 0;
+        margin: 8px 0;
         align-items: baseline;
       }
 
       .result-value,
-      .pipe-result-value,
-      .dp-result-value,
-      .ahu-result-value {
+      .flow-velocity-value,
+      .cooling-value,
+      .ahu-interp-value {
         text-align: right;
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       }
 
-      .pipe-result-key,
-      .dp-result-key,
-      .ahu-result-key,
+      .flow-velocity-key,
+      .cooling-key,
+      .ahu-interp-key,
       .result-unit {
         color: #374151;
         font-size: 0.92rem;
@@ -166,9 +166,9 @@
         }
 
         .result-row,
-        .pipe-result li,
-        .dp-result li,
-        .ahu-result li {
+        .flow-velocity-result li,
+        .cooling-result li,
+        .ahu-interp-result li {
           grid-template-columns: 1fr;
           gap: 2px;
           margin: 9px 0;
@@ -179,9 +179,9 @@
         }
 
         .result-value,
-        .pipe-result-value,
-        .dp-result-value,
-        .ahu-result-value {
+        .flow-velocity-value,
+        .cooling-value,
+        .ahu-interp-value {
           text-align: left;
         }
       }
@@ -189,7 +189,7 @@
   </head>
   <body>
     <main class="container">
-      <h1>HVAC Unit Converter V0.8</h1>
+      <h1>HVAC Unit Converter V0.9</h1>
       <section class="grid">
         <article class="card" data-type="temp">
           <h2>溫度</h2>
@@ -207,9 +207,9 @@
         </article>
 
         <article class="card" data-type="airflow">
-          <h2>風量</h2>
+          <h2>流量</h2>
           <section class="form-section">
-            <p class="form-label">輸入風量</p>
+            <p class="form-label">輸入流量</p>
             <div class="row">
               <input type="number" step="any" placeholder="請輸入數值" />
               <select data-role="from-unit">
@@ -261,77 +261,25 @@
           <ul class="result-list" data-role="result-list"></ul>
         </article>
 
-        <article class="card" data-type="pipe-sizing">
-          <h2>水管管徑建議</h2>
+        <article class="card" data-type="flow-velocity">
+          <h2>流量 + 管徑 → 流速</h2>
           <section class="form-section">
-            <p class="section-title">流量條件</p>
-            <p class="form-label">水流量</p>
-            <div class="row">
-              <input type="number" step="any" data-role="flow-input" placeholder="請輸入水流量" />
-              <select data-role="flow-unit">
+            <p class="form-label">流量數值</p>
+            <div class="row-single">
+              <input type="number" step="any" data-role="fv-flow-value" placeholder="請輸入流量" />
+            </div>
+            <p class="form-label">流量單位</p>
+            <div class="row-single">
+              <select data-role="fv-flow-unit">
                 <option value="LPM">LPM</option>
                 <option value="L/s">L/s</option>
                 <option value="m3/h">m3/h</option>
                 <option value="GPM">GPM</option>
               </select>
             </div>
-            <p class="form-label">50A 以上最大流速（m/s）</p>
-            <div class="row-single">
-              <input type="number" step="any" data-role="max-velocity-input" value="3.0" placeholder="預設 3.0" />
-            </div>
-          </section>
-
-          <ul class="pipe-result" data-role="pipe-result">
-            <li><span class="pipe-result-key">建議管徑</span><span class="result-colon">:</span><span class="pipe-result-value">-</span></li>
-            <li><span class="pipe-result-key">參考尺寸</span><span class="result-colon">:</span><span class="pipe-result-value">-</span></li>
-            <li><span class="pipe-result-key">估算內徑</span><span class="result-colon">:</span><span class="pipe-result-value">-</span></li>
-            <li><span class="pipe-result-key">估算流速</span><span class="result-colon">:</span><span class="pipe-result-value">-</span></li>
-            <li><span class="pipe-result-key">設計條件</span><span class="result-colon">:</span><span class="pipe-result-value">-</span></li>
-            <li><span class="pipe-result-key">判定</span><span class="result-colon">:</span><span class="pipe-result-value">-</span></li>
-          </ul>
-          <p class="sub-note">15A~40A 採 1.2 m/s 上限。</p>
-          <p class="sub-note">50A 以上採設定值，預設 3.0 m/s。</p>
-        </article>
-
-        <article class="card" data-type="dp-flow">
-          <h2>壓差估算流量（設備修正）</h2>
-          <section class="form-section">
-            <p class="section-title">目前量測壓差</p>
-            <p class="form-label">目前壓差</p>
-            <div class="row">
-              <input id="dpInput" type="number" step="any" data-role="dp-input" placeholder="例如 35" />
-              <select id="dpUnit" data-role="dp-unit">
-                <option value="kPa">kPa</option>
-                <option value="mAq">mAq</option>
-                <option value="bar">bar</option>
-                <option value="psi">psi</option>
-              </select>
-            </div>
-          </section>
-
-          <section class="form-section">
-            <p class="section-title">設備已知條件（選機表 / 銘牌）</p>
-            <p class="form-label">參考流量（LPM）</p>
-            <div class="row-single">
-              <input id="refFlow" type="number" step="any" data-role="dp-ref-flow" value="300" placeholder="例如 300" />
-            </div>
-            <p class="form-label">對應壓損</p>
-            <div class="row">
-              <input id="refPressure" type="number" step="any" data-role="dp-ref-pressure" value="30" placeholder="例如 30" />
-              <select id="refPressureUnit" data-role="dp-ref-unit">
-                <option value="kPa">kPa</option>
-                <option value="mAq">mAq</option>
-                <option value="bar">bar</option>
-              </select>
-            </div>
-            <p class="hint">例：選機表顯示 300 LPM 時水側壓損 30 kPa → 填 300 / 30 kPa</p>
-          </section>
-
-          <section class="form-section">
-            <p class="section-title">使用管徑</p>
             <p class="form-label">管徑</p>
             <div class="row-single">
-              <select id="dpPipeSize" data-role="dp-pipe-size">
+              <select data-role="fv-pipe-size">
                 <option value="15A">15A</option>
                 <option value="20A">20A</option>
                 <option value="25A">25A</option>
@@ -346,37 +294,79 @@
               </select>
             </div>
           </section>
-
-          <ul class="dp-result" data-role="dp-result">
-            <li><span class="dp-result-key">理想壓差粗估流量（LPM）</span><span class="result-colon">:</span><span class="dp-result-value">-</span></li>
-            <li><span class="dp-result-key">設備修正流量（LPM）</span><span class="result-colon">:</span><span class="dp-result-value">-</span></li>
-            <li><span class="dp-result-key">設備修正流量（L/s）</span><span class="result-colon">:</span><span class="dp-result-value">-</span></li>
-            <li><span class="dp-result-key">使用管徑</span><span class="result-colon">:</span><span class="dp-result-value">-</span></li>
-            <li><span class="dp-result-key">設備參考條件</span><span class="result-colon">:</span><span class="dp-result-value">-</span></li>
-            <li><span class="dp-result-key">判定</span><span class="result-colon">:</span><span class="dp-result-value">-</span></li>
-            <li><span class="dp-result-key">備註</span><span class="result-colon">:</span><span class="dp-result-value">設備修正流量為依壓損平方關係推估，較接近實務，仍建議搭配廠商曲線確認</span></li>
+          <ul class="flow-velocity-result" data-role="flow-velocity-result">
+            <li><span class="flow-velocity-key">估算流速（m/s）</span><span class="result-colon">:</span><span class="flow-velocity-value">-</span></li>
+            <li><span class="flow-velocity-key">估算流速（ft/s）</span><span class="result-colon">:</span><span class="flow-velocity-value">-</span></li>
+            <li><span class="flow-velocity-key">使用管徑</span><span class="result-colon">:</span><span class="flow-velocity-value">-</span></li>
+            <li><span class="flow-velocity-key">判定</span><span class="result-colon">:</span><span class="flow-velocity-value">-</span></li>
           </ul>
         </article>
 
-        <article class="card" data-type="ahu-estimate">
-          <h2>空調箱溫度粗估（AHU）</h2>
+        <article class="card" data-type="flow-delta-t-cooling">
+          <h2>流量 + ΔT → 冷量</h2>
           <section class="form-section">
-            <p class="form-label">出風溫度（°C）</p>
+            <p class="form-label">流量數值</p>
             <div class="row-single">
-              <input type="number" step="any" data-role="ahu-supply-air-temp" placeholder="例如 16" />
+              <input type="number" step="any" data-role="cooling-flow-value" placeholder="請輸入流量" />
             </div>
-            <p class="form-label">系統類型</p>
+            <p class="form-label">流量單位</p>
             <div class="row-single">
-              <select data-role="ahu-system-type">
-                <option value="CHW">冰水盤管（CHW）</option>
-                <option value="DX">直膨盤管（DX）</option>
+              <select data-role="cooling-flow-unit">
+                <option value="LPM">LPM</option>
+                <option value="L/s">L/s</option>
+                <option value="m3/h">m3/h</option>
+                <option value="GPM">GPM</option>
+              </select>
+            </div>
+            <p class="form-label">進出水溫差 ΔT（°C）</p>
+            <div class="row-single">
+              <input type="number" step="any" data-role="cooling-delta-t" placeholder="請輸入 ΔT" />
+            </div>
+          </section>
+          <ul class="cooling-result" data-role="cooling-result">
+            <li><span class="cooling-key">冷量（kW）</span><span class="result-colon">:</span><span class="cooling-value">-</span></li>
+            <li><span class="cooling-key">冷量（RT）</span><span class="result-colon">:</span><span class="cooling-value">-</span></li>
+            <li><span class="cooling-key">備註</span><span class="result-colon">:</span><span class="cooling-value">以水為基準粗估</span></li>
+          </ul>
+        </article>
+
+        <article class="card" data-type="ahu-interp">
+          <h2>AHU 壓損兩點內插</h2>
+          <section class="form-section">
+            <p class="form-label">點1流量（LPM）</p>
+            <div class="row-single">
+              <input type="number" step="any" data-role="ahu-p1-flow" placeholder="請輸入點1流量" />
+            </div>
+            <p class="form-label">點1壓損</p>
+            <div class="row-single">
+              <input type="number" step="any" data-role="ahu-p1-dp" placeholder="請輸入點1壓損" />
+            </div>
+            <p class="form-label">點2流量（LPM）</p>
+            <div class="row-single">
+              <input type="number" step="any" data-role="ahu-p2-flow" placeholder="請輸入點2流量" />
+            </div>
+            <p class="form-label">點2壓損</p>
+            <div class="row-single">
+              <input type="number" step="any" data-role="ahu-p2-dp" placeholder="請輸入點2壓損" />
+            </div>
+            <p class="form-label">現場壓損</p>
+            <div class="row-single">
+              <input type="number" step="any" data-role="ahu-site-dp" placeholder="請輸入現場壓損" />
+            </div>
+            <p class="form-label">壓損單位</p>
+            <div class="row-single">
+              <select data-role="ahu-dp-unit">
+                <option value="kPa">kPa</option>
+                <option value="mAq">mAq</option>
+                <option value="bar">bar</option>
               </select>
             </div>
           </section>
-
-          <ul class="ahu-result" data-role="ahu-result">
-            <li><span class="ahu-result-key">推估區間</span><span class="result-colon">:</span><span class="ahu-result-value">-</span></li>
-            <li><span class="ahu-result-key">備註</span><span class="result-colon">:</span><span class="ahu-result-value">此為現場快速粗估值，未考慮風量、回風條件、盤管效率與實際負載，正式設計仍需依設備選機資料確認。</span></li>
+          <ul class="ahu-interp-result" data-role="ahu-interp-result">
+            <li><span class="ahu-interp-key">估算流量（LPM）</span><span class="result-colon">:</span><span class="ahu-interp-value">-</span></li>
+            <li><span class="ahu-interp-key">估算流量（L/s）</span><span class="result-colon">:</span><span class="ahu-interp-value">-</span></li>
+            <li><span class="ahu-interp-key">判定</span><span class="result-colon">:</span><span class="ahu-interp-value">-</span></li>
+            <li><span class="ahu-interp-key">備註</span><span class="result-colon">:</span><span class="ahu-interp-value">建議使用同一台設備選機表相鄰兩點</span></li>
           </ul>
         </article>
       </section>
