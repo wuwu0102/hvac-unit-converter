@@ -83,11 +83,6 @@ const unitMap = {
   velocity: ['m/s', 'ft/s', 'mm/s', 'cm/s']
 };
 
-const SMALL_PIPE_MAX_VELOCITY = 1.2;
-const COMMON_MIN_VELOCITY = 0.6;
-const DEFAULT_GENERAL_MAX_VELOCITY = 3.0;
-const WATER_DENSITY = 998;
-
 const flowToM3sMap = {
   LPM: 1 / 60000,
   'L/s': 0.001,
@@ -97,17 +92,9 @@ const flowToM3sMap = {
 
 const dpToPaMap = {
   kPa: 1000,
-  bar: 100000,
-  psi: 6894.76,
-  mAq: 9806.65
+  mAq: 9806.65,
+  bar: 100000
 };
-
-function getReasonableVelocityRangeByPipeA(pipeA) {
-  const numericA = Number.parseInt(pipeA, 10);
-  const minVelocity = COMMON_MIN_VELOCITY;
-  const maxVelocity = numericA >= 50 ? DEFAULT_GENERAL_MAX_VELOCITY : SMALL_PIPE_MAX_VELOCITY;
-  return { minVelocity, maxVelocity };
-}
 
 const pipeSizeList = [
   { a: '15A', inchDn: '1/2" / DN15', innerDiameterMm: 15.8 },
@@ -127,269 +114,224 @@ function formatNumber(value) {
   return Number.isFinite(value) ? value.toFixed(4) : '-';
 }
 
-function formatCompactNumber(value) {
-  if (!Number.isFinite(value)) {
-    return '-';
-  }
-  return Number.isInteger(value) ? String(value) : value.toFixed(2);
-}
-
 function renderList(resultList, units, textByUnit) {
   resultList.innerHTML = units
     .map((unit) => `<li class="result-row"><span class="result-unit">${unit}</span><span class="result-colon">:</span><span class="result-value">${textByUnit(unit)}</span></li>`)
     .join('');
 }
 
-function resetPipeResult(pipeResult) {
-  updatePipeResultRow(pipeResult, '建議管徑', '-');
-  updatePipeResultRow(pipeResult, '參考尺寸', '-');
-  updatePipeResultRow(pipeResult, '估算內徑', '-');
-  updatePipeResultRow(pipeResult, '估算流速', '-');
-  updatePipeResultRow(pipeResult, '設計條件', '-');
-  updatePipeResultRow(pipeResult, '判定', '-');
-}
-
-function updatePipeResultRow(pipeResult, label, value) {
-  const rows = Array.from(pipeResult.querySelectorAll('li'));
-  const row = rows.find((item) => item.querySelector('.pipe-result-key')?.textContent.trim() === label);
-  const valueEl = row?.querySelector('.pipe-result-value');
+function updateResultRow(container, keyClass, valueClass, label, value) {
+  const rows = Array.from(container.querySelectorAll('li'));
+  const row = rows.find((item) => item.querySelector(`.${keyClass}`)?.textContent.trim() === label);
+  const valueEl = row?.querySelector(`.${valueClass}`);
   if (valueEl) {
     valueEl.textContent = value;
   }
 }
 
-function updateDpResultRow(dpResult, label, value) {
-  const rows = Array.from(dpResult.querySelectorAll('li'));
-  const row = rows.find((item) => item.querySelector('.dp-result-key')?.textContent.trim() === label);
-  const valueEl = row?.querySelector('.dp-result-value');
-  if (valueEl) {
-    valueEl.textContent = value;
-  }
-}
+function initializeFlowVelocityCard(card) {
+  const flowValueInput = card.querySelector('[data-role="fv-flow-value"]');
+  const flowUnitSelect = card.querySelector('[data-role="fv-flow-unit"]');
+  const pipeSizeSelect = card.querySelector('[data-role="fv-pipe-size"]');
+  const result = card.querySelector('[data-role="flow-velocity-result"]');
 
-function updateAhuResultRow(ahuResult, label, value) {
-  const rows = Array.from(ahuResult.querySelectorAll('li'));
-  const row = rows.find((item) => item.querySelector('.ahu-result-key')?.textContent.trim() === label);
-  const valueEl = row?.querySelector('.ahu-result-value');
-  if (valueEl) {
-    valueEl.textContent = value;
-  }
-}
-
-function initializePipeSizingCard(card) {
-  const flowInput = card.querySelector('[data-role="flow-input"]');
-  const flowUnit = card.querySelector('[data-role="flow-unit"]');
-  const maxVelocityInput = card.querySelector('[data-role="max-velocity-input"]');
-  const pipeResult = card.querySelector('[data-role="pipe-result"]');
-
-  if (!flowInput || !flowUnit || !maxVelocityInput || !pipeResult) {
+  if (!flowValueInput || !flowUnitSelect || !pipeSizeSelect || !result) {
     return false;
   }
 
-  function updatePipeSizing() {
-    const rawFlow = flowInput.value ?? '';
-    const selectedUnit = flowUnit.value ?? 'LPM';
-    const rawGeneralMax = maxVelocityInput.value ?? '';
+  function reset() {
+    updateResultRow(result, 'flow-velocity-key', 'flow-velocity-value', '估算流速（m/s）', '-');
+    updateResultRow(result, 'flow-velocity-key', 'flow-velocity-value', '估算流速（ft/s）', '-');
+    updateResultRow(result, 'flow-velocity-key', 'flow-velocity-value', '使用管徑', '-');
+    updateResultRow(result, 'flow-velocity-key', 'flow-velocity-value', '判定', '-');
+  }
+
+  function update() {
+    const rawFlow = flowValueInput.value ?? '';
+    const unit = flowUnitSelect.value;
+    const pipeA = pipeSizeSelect.value;
 
     if (rawFlow.trim() === '') {
-      resetPipeResult(pipeResult);
+      reset();
       return;
     }
 
     const flowValue = Number(rawFlow);
-    const generalMaxVelocity = Number(rawGeneralMax || DEFAULT_GENERAL_MAX_VELOCITY);
-
-    if (!Number.isFinite(flowValue) || flowValue <= 0 || !Number.isFinite(generalMaxVelocity) || generalMaxVelocity <= 0) {
-      resetPipeResult(pipeResult);
+    if (!Number.isFinite(flowValue) || flowValue <= 0) {
+      reset();
       return;
     }
 
-    const flowM3s = flowValue * flowToM3sMap[selectedUnit];
-
-    const matchedPipe = pipeSizeList.find((pipe) => {
-      const diameterM = pipe.innerDiameterMm / 1000;
-      const area = Math.PI * (diameterM ** 2) / 4;
-      const velocity = flowM3s / area;
-      const { maxVelocity } = getReasonableVelocityRangeByPipeA(pipe.a);
-      const maxAllowed = Number.parseInt(pipe.a, 10) >= 50 ? generalMaxVelocity : maxVelocity;
-      return velocity <= maxAllowed;
-    });
-
-    const conditionText = '水 / 一般鍍鋅鋼管 / 依管徑採不同流速上限';
-
-    if (!matchedPipe) {
-      updatePipeResultRow(pipeResult, '建議管徑', '目前內建管徑範圍不足，請選更大管徑');
-      updatePipeResultRow(pipeResult, '參考尺寸', '-');
-      updatePipeResultRow(pipeResult, '估算內徑', '-');
-      updatePipeResultRow(pipeResult, '估算流速', '-');
-      updatePipeResultRow(pipeResult, '設計條件', conditionText);
-      updatePipeResultRow(pipeResult, '判定', '不符合流速上限');
-      return;
-    }
-
-    const matchedDiameterM = matchedPipe.innerDiameterMm / 1000;
-    const matchedArea = Math.PI * (matchedDiameterM ** 2) / 4;
-    const estimatedVelocity = flowM3s / matchedArea;
-
-    updatePipeResultRow(pipeResult, '建議管徑', matchedPipe.a);
-    updatePipeResultRow(pipeResult, '參考尺寸', matchedPipe.inchDn);
-    updatePipeResultRow(pipeResult, '估算內徑', `${matchedPipe.innerDiameterMm.toFixed(1)} mm`);
-    updatePipeResultRow(pipeResult, '估算流速', `${formatNumber(estimatedVelocity)} m/s`);
-    updatePipeResultRow(pipeResult, '設計條件', conditionText);
-    updatePipeResultRow(pipeResult, '判定', '符合流速上限');
-  }
-
-  flowInput.addEventListener('input', updatePipeSizing);
-  flowUnit.addEventListener('change', updatePipeSizing);
-  maxVelocityInput.addEventListener('input', updatePipeSizing);
-  updatePipeSizing();
-
-  return true;
-}
-
-function initializeDpFlowCard(card) {
-  const dpInput = card.querySelector('#dpInput');
-  const dpUnit = card.querySelector('#dpUnit');
-  const dpRefFlow = card.querySelector('#refFlow');
-  const dpRefPressure = card.querySelector('#refPressure');
-  const dpRefUnit = card.querySelector('#refPressureUnit');
-  const dpPipeSize = card.querySelector('#dpPipeSize');
-  const dpResult = card.querySelector('[data-role="dp-result"]');
-
-  if (!dpInput || !dpUnit || !dpRefFlow || !dpRefPressure || !dpRefUnit || !dpPipeSize || !dpResult) {
-    return false;
-  }
-
-  function resetDpResult() {
-    updateDpResultRow(dpResult, '理想壓差粗估流量（LPM）', '-');
-    updateDpResultRow(dpResult, '設備修正流量（LPM）', '-');
-    updateDpResultRow(dpResult, '設備修正流量（L/s）', '-');
-    updateDpResultRow(dpResult, '使用管徑', '-');
-    updateDpResultRow(dpResult, '設備參考條件', '-');
-    updateDpResultRow(dpResult, '判定', '-');
-    updateDpResultRow(dpResult, '備註', '設備修正流量為依壓損平方關係推估，較接近實務，仍建議搭配廠商曲線確認');
-  }
-
-  function updateDpFlow() {
-    const rawDp = dpInput.value ?? '';
-    const rawRefFlow = dpRefFlow.value ?? '';
-    const rawRefPressure = dpRefPressure.value ?? '';
-    const selectedDpUnit = dpUnit.value;
-    const selectedRefUnit = dpRefUnit.value;
-    const selectedPipeA = dpPipeSize.value;
-
-    if (rawDp.trim() === '' || rawRefFlow.trim() === '' || rawRefPressure.trim() === '') {
-      resetDpResult();
-      return;
-    }
-
-    const dpValue = Number(rawDp);
-    const refFlowLpm = Number(rawRefFlow);
-    const refPressureValue = Number(rawRefPressure);
-
-    if (!Number.isFinite(dpValue) || dpValue <= 0 || !Number.isFinite(refFlowLpm) || refFlowLpm <= 0 || !Number.isFinite(refPressureValue) || refPressureValue <= 0) {
-      resetDpResult();
-      return;
-    }
-
-    const pipe = pipeSizeList.find((item) => item.a === selectedPipeA);
+    const pipe = pipeSizeList.find((item) => item.a === pipeA);
     if (!pipe) {
-      resetDpResult();
+      reset();
       return;
     }
 
-    const dpPa = dpValue * dpToPaMap[selectedDpUnit];
-    const refDpPa = refPressureValue * dpToPaMap[selectedRefUnit];
-    const velocity = Math.sqrt((2 * dpPa) / WATER_DENSITY);
+    const flowM3s = flowValue * flowToM3sMap[unit];
     const diameterM = pipe.innerDiameterMm / 1000;
     const area = Math.PI * (diameterM ** 2) / 4;
-    const idealFlowM3s = area * velocity;
-    const idealFlowLpm = idealFlowM3s * 60000;
+    const velocityMs = flowM3s / area;
+    const velocityFts = velocityMs * 3.28084;
 
-    const correctedFlowLpm = refFlowLpm * Math.sqrt(dpPa / refDpPa);
-    const correctedFlowLs = correctedFlowLpm / 60;
+    const boundary = Number.parseInt(pipe.a, 10) <= 40 ? 1.2 : 3.0;
+    const judgment = velocityMs <= boundary ? '符合' : '偏高';
 
-    let judgment = '設備修正後與理想流量接近';
-    if (correctedFlowLpm < idealFlowLpm * 0.7) {
-      judgment = '設備阻力影響明顯，理想流量高估';
-    }
-
-    updateDpResultRow(dpResult, '理想壓差粗估流量（LPM）', formatNumber(idealFlowLpm));
-    updateDpResultRow(dpResult, '設備修正流量（LPM）', formatNumber(correctedFlowLpm));
-    updateDpResultRow(dpResult, '設備修正流量（L/s）', formatNumber(correctedFlowLs));
-    updateDpResultRow(dpResult, '使用管徑', `${pipe.a} / ${pipe.inchDn}`);
-    updateDpResultRow(dpResult, '設備參考條件', `${formatCompactNumber(refFlowLpm)} LPM @ ${formatCompactNumber(refPressureValue)} ${selectedRefUnit}`);
-    updateDpResultRow(dpResult, '判定', judgment);
-    updateDpResultRow(dpResult, '備註', '設備修正流量為依壓損平方關係推估，較接近實務，仍建議搭配廠商曲線確認');
+    updateResultRow(result, 'flow-velocity-key', 'flow-velocity-value', '估算流速（m/s）', formatNumber(velocityMs));
+    updateResultRow(result, 'flow-velocity-key', 'flow-velocity-value', '估算流速（ft/s）', formatNumber(velocityFts));
+    updateResultRow(result, 'flow-velocity-key', 'flow-velocity-value', '使用管徑', `${pipe.a} / ${pipe.inchDn}`);
+    updateResultRow(result, 'flow-velocity-key', 'flow-velocity-value', '判定', judgment);
   }
 
-  dpInput.addEventListener('input', updateDpFlow);
-  dpUnit.addEventListener('change', updateDpFlow);
-  dpRefFlow.addEventListener('input', updateDpFlow);
-  dpRefPressure.addEventListener('input', updateDpFlow);
-  dpRefUnit.addEventListener('change', updateDpFlow);
-  dpPipeSize.addEventListener('change', updateDpFlow);
-  updateDpFlow();
-
+  flowValueInput.addEventListener('input', update);
+  flowUnitSelect.addEventListener('change', update);
+  pipeSizeSelect.addEventListener('change', update);
+  update();
   return true;
 }
 
-function initializeAhuEstimateCard(card) {
-  const supplyTempInput = card.querySelector('[data-role="ahu-supply-air-temp"]');
-  const systemTypeSelect = card.querySelector('[data-role="ahu-system-type"]');
-  const ahuResult = card.querySelector('[data-role="ahu-result"]');
+function initializeCoolingCard(card) {
+  const flowValueInput = card.querySelector('[data-role="cooling-flow-value"]');
+  const flowUnitSelect = card.querySelector('[data-role="cooling-flow-unit"]');
+  const deltaTInput = card.querySelector('[data-role="cooling-delta-t"]');
+  const result = card.querySelector('[data-role="cooling-result"]');
 
-  if (!supplyTempInput || !systemTypeSelect || !ahuResult) {
+  if (!flowValueInput || !flowUnitSelect || !deltaTInput || !result) {
     return false;
   }
 
-  function updateAhuEstimate() {
-    const rawTemp = supplyTempInput.value ?? '';
-    const systemType = systemTypeSelect.value;
-
-    if (rawTemp.trim() === '') {
-      updateAhuResultRow(ahuResult, '推估區間', '-');
-      return;
-    }
-
-    const supplyTempC = Number(rawTemp);
-    if (!Number.isFinite(supplyTempC)) {
-      updateAhuResultRow(ahuResult, '推估區間', '-');
-      return;
-    }
-
-    if (systemType === 'CHW') {
-      const low = supplyTempC - 7;
-      const high = supplyTempC - 3;
-      updateAhuResultRow(ahuResult, '推估區間', `推估冰水供水溫度：約 ${formatCompactNumber(low)}°C ～ ${formatCompactNumber(high)}°C`);
-      return;
-    }
-
-    const low = supplyTempC - 10;
-    const high = supplyTempC - 5;
-    updateAhuResultRow(ahuResult, '推估區間', `推估冷媒蒸發溫度：約 ${formatCompactNumber(low)}°C ～ ${formatCompactNumber(high)}°C`);
+  function reset() {
+    updateResultRow(result, 'cooling-key', 'cooling-value', '冷量（kW）', '-');
+    updateResultRow(result, 'cooling-key', 'cooling-value', '冷量（RT）', '-');
+    updateResultRow(result, 'cooling-key', 'cooling-value', '備註', '以水為基準粗估');
   }
 
-  supplyTempInput.addEventListener('input', updateAhuEstimate);
-  systemTypeSelect.addEventListener('change', updateAhuEstimate);
-  updateAhuEstimate();
+  function update() {
+    const rawFlow = flowValueInput.value ?? '';
+    const unit = flowUnitSelect.value;
+    const rawDeltaT = deltaTInput.value ?? '';
 
+    if (rawFlow.trim() === '' || rawDeltaT.trim() === '') {
+      reset();
+      return;
+    }
+
+    const flowValue = Number(rawFlow);
+    const deltaT = Number(rawDeltaT);
+
+    if (!Number.isFinite(flowValue) || !Number.isFinite(deltaT) || flowValue <= 0) {
+      reset();
+      return;
+    }
+
+    const flowLpm = (flowValue * flowToM3sMap[unit]) * 60000;
+    const kw = (flowLpm * deltaT * 4.186) / 60;
+    const rt = kw / 3.517;
+
+    updateResultRow(result, 'cooling-key', 'cooling-value', '冷量（kW）', formatNumber(kw));
+    updateResultRow(result, 'cooling-key', 'cooling-value', '冷量（RT）', formatNumber(rt));
+    updateResultRow(result, 'cooling-key', 'cooling-value', '備註', '以水為基準粗估');
+  }
+
+  flowValueInput.addEventListener('input', update);
+  flowUnitSelect.addEventListener('change', update);
+  deltaTInput.addEventListener('input', update);
+  update();
+  return true;
+}
+
+function initializeAhuInterpolationCard(card) {
+  const point1FlowInput = card.querySelector('[data-role="ahu-p1-flow"]');
+  const point1DpInput = card.querySelector('[data-role="ahu-p1-dp"]');
+  const point2FlowInput = card.querySelector('[data-role="ahu-p2-flow"]');
+  const point2DpInput = card.querySelector('[data-role="ahu-p2-dp"]');
+  const siteDpInput = card.querySelector('[data-role="ahu-site-dp"]');
+  const dpUnitSelect = card.querySelector('[data-role="ahu-dp-unit"]');
+  const result = card.querySelector('[data-role="ahu-interp-result"]');
+
+  if (!point1FlowInput || !point1DpInput || !point2FlowInput || !point2DpInput || !siteDpInput || !dpUnitSelect || !result) {
+    return false;
+  }
+
+  function reset() {
+    updateResultRow(result, 'ahu-interp-key', 'ahu-interp-value', '估算流量（LPM）', '-');
+    updateResultRow(result, 'ahu-interp-key', 'ahu-interp-value', '估算流量（L/s）', '-');
+    updateResultRow(result, 'ahu-interp-key', 'ahu-interp-value', '判定', '-');
+    updateResultRow(result, 'ahu-interp-key', 'ahu-interp-value', '備註', '建議使用同一台設備選機表相鄰兩點');
+  }
+
+  function update() {
+    const rawP1Flow = point1FlowInput.value ?? '';
+    const rawP1Dp = point1DpInput.value ?? '';
+    const rawP2Flow = point2FlowInput.value ?? '';
+    const rawP2Dp = point2DpInput.value ?? '';
+    const rawSiteDp = siteDpInput.value ?? '';
+    const unit = dpUnitSelect.value;
+
+    if (rawP1Flow.trim() === '' || rawP1Dp.trim() === '' || rawP2Flow.trim() === '' || rawP2Dp.trim() === '' || rawSiteDp.trim() === '') {
+      reset();
+      return;
+    }
+
+    const p1Flow = Number(rawP1Flow);
+    const p1Dp = Number(rawP1Dp);
+    const p2Flow = Number(rawP2Flow);
+    const p2Dp = Number(rawP2Dp);
+    const siteDp = Number(rawSiteDp);
+
+    if (!Number.isFinite(p1Flow) || !Number.isFinite(p1Dp) || !Number.isFinite(p2Flow) || !Number.isFinite(p2Dp) || !Number.isFinite(siteDp)) {
+      reset();
+      return;
+    }
+
+    const ratio = dpToPaMap[unit];
+    const p1Pa = p1Dp * ratio;
+    const p2Pa = p2Dp * ratio;
+    const sitePa = siteDp * ratio;
+
+    if (p1Pa === p2Pa) {
+      reset();
+      updateResultRow(result, 'ahu-interp-key', 'ahu-interp-value', '判定', '兩點壓損不可相同');
+      return;
+    }
+
+    const estimatedFlowLpm = p1Flow + ((sitePa - p1Pa) * (p2Flow - p1Flow)) / (p2Pa - p1Pa);
+    const estimatedFlowLs = estimatedFlowLpm / 60;
+
+    const minPa = Math.min(p1Pa, p2Pa);
+    const maxPa = Math.max(p1Pa, p2Pa);
+    const isInside = sitePa >= minPa && sitePa <= maxPa;
+    const judgment = isInside ? '內插估算' : '超出兩點範圍，為外推估算';
+
+    updateResultRow(result, 'ahu-interp-key', 'ahu-interp-value', '估算流量（LPM）', formatNumber(estimatedFlowLpm));
+    updateResultRow(result, 'ahu-interp-key', 'ahu-interp-value', '估算流量（L/s）', formatNumber(estimatedFlowLs));
+    updateResultRow(result, 'ahu-interp-key', 'ahu-interp-value', '判定', judgment);
+    updateResultRow(result, 'ahu-interp-key', 'ahu-interp-value', '備註', '建議使用同一台設備選機表相鄰兩點');
+  }
+
+  point1FlowInput.addEventListener('input', update);
+  point1DpInput.addEventListener('input', update);
+  point2FlowInput.addEventListener('input', update);
+  point2DpInput.addEventListener('input', update);
+  siteDpInput.addEventListener('input', update);
+  dpUnitSelect.addEventListener('change', update);
+  update();
   return true;
 }
 
 function initializeCard(card) {
   const type = card?.dataset?.type || 'unknown';
 
-  if (type === 'pipe-sizing') {
-    return initializePipeSizingCard(card);
+  if (type === 'flow-velocity') {
+    return initializeFlowVelocityCard(card);
   }
 
-  if (type === 'dp-flow') {
-    return initializeDpFlowCard(card);
+  if (type === 'flow-delta-t-cooling') {
+    return initializeCoolingCard(card);
   }
 
-  if (type === 'ahu-estimate') {
-    return initializeAhuEstimateCard(card);
+  if (type === 'ahu-interp') {
+    return initializeAhuInterpolationCard(card);
   }
 
   const input = card.querySelector('input');
