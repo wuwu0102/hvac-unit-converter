@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HVAC Unit Converter V0.7</title>
+    <title>HVAC Unit Converter V0.8</title>
     <style>
       :root {
         color-scheme: light;
@@ -22,7 +22,7 @@
       }
 
       .container {
-        max-width: 900px;
+        max-width: 920px;
         margin: 0 auto;
       }
 
@@ -33,7 +33,7 @@
 
       .grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
         gap: 14px;
       }
 
@@ -50,10 +50,35 @@
         font-size: 1.08rem;
       }
 
-      .hint {
-        margin: 0 0 10px;
+      .form-section {
+        margin-bottom: 14px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #eef2f7;
+      }
+
+      .form-section:last-of-type {
+        border-bottom: 0;
+        padding-bottom: 0;
+      }
+
+      .section-title {
+        margin: 0 0 8px;
+        font-size: 0.95rem;
+        color: #1f2937;
+        font-weight: 600;
+      }
+
+      .form-label {
+        margin: 0 0 6px;
+        font-size: 0.9rem;
         color: #4b5563;
-        font-size: 0.88rem;
+      }
+
+      .hint,
+      .sub-note {
+        margin: 8px 0 0;
+        color: #4b5563;
+        font-size: 0.84rem;
         line-height: 1.5;
       }
 
@@ -61,7 +86,12 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 8px;
-        margin-bottom: 10px;
+      }
+
+      .row-single {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 8px;
       }
 
       input,
@@ -71,12 +101,14 @@
         border: 1px solid #d1d5db;
         border-radius: 8px;
         font-size: 0.95rem;
+        background: #fff;
       }
 
       .result,
       .result-list,
       .pipe-result,
-      .dp-result {
+      .dp-result,
+      .ahu-result {
         margin: 0;
         padding: 0;
         list-style: none;
@@ -84,9 +116,10 @@
 
       .result-row,
       .pipe-result li,
-      .dp-result li {
+      .dp-result li,
+      .ahu-result li {
         display: grid;
-        grid-template-columns: minmax(86px, 1fr) 10px minmax(0, 1.3fr);
+        grid-template-columns: minmax(96px, 1fr) 10px minmax(0, 1.3fr);
         gap: 8px;
         margin: 7px 0;
         align-items: baseline;
@@ -94,13 +127,15 @@
 
       .result-value,
       .pipe-result-value,
-      .dp-result-value {
+      .dp-result-value,
+      .ahu-result-value {
         text-align: right;
         font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       }
 
       .pipe-result-key,
       .dp-result-key,
+      .ahu-result-key,
       .result-unit {
         color: #374151;
         font-size: 0.92rem;
@@ -109,12 +144,6 @@
       .result-colon {
         text-align: center;
         color: #6b7280;
-      }
-
-      .form-label {
-        margin: 0 0 6px;
-        font-size: 0.9rem;
-        color: #4b5563;
       }
 
       @media (max-width: 480px) {
@@ -131,9 +160,15 @@
           padding: 12px;
         }
 
+        .grid,
+        .row {
+          grid-template-columns: 1fr;
+        }
+
         .result-row,
         .pipe-result li,
-        .dp-result li {
+        .dp-result li,
+        .ahu-result li {
           grid-template-columns: 1fr;
           gap: 2px;
           margin: 9px 0;
@@ -145,7 +180,8 @@
 
         .result-value,
         .pipe-result-value,
-        .dp-result-value {
+        .dp-result-value,
+        .ahu-result-value {
           text-align: left;
         }
       }
@@ -153,82 +189,97 @@
   </head>
   <body>
     <main class="container">
-      <h1>HVAC Unit Converter V0.7</h1>
+      <h1>HVAC Unit Converter V0.8</h1>
       <section class="grid">
         <article class="card" data-type="temp">
           <h2>溫度</h2>
-          <div class="row">
-            <input type="number" step="any" placeholder="請輸入數值" />
-            <select data-role="from-unit">
-              <option value="C">C</option>
-              <option value="F">F</option>
-            </select>
-          </div>
+          <section class="form-section">
+            <p class="form-label">輸入溫度</p>
+            <div class="row">
+              <input type="number" step="any" placeholder="請輸入數值" />
+              <select data-role="from-unit">
+                <option value="C">C</option>
+                <option value="F">F</option>
+              </select>
+            </div>
+          </section>
           <div class="result">結果：-</div>
         </article>
 
         <article class="card" data-type="airflow">
           <h2>風量</h2>
-          <div class="row">
-            <input type="number" step="any" placeholder="請輸入數值" />
-            <select data-role="from-unit">
-              <option value="CFM">CFM</option>
-              <option value="CMH">CMH</option>
-              <option value="m3/s">m3/s</option>
-              <option value="L/s">L/s</option>
-              <option value="LPM">LPM</option>
-              <option value="CMM">CMM</option>
-            </select>
-          </div>
+          <section class="form-section">
+            <p class="form-label">輸入風量</p>
+            <div class="row">
+              <input type="number" step="any" placeholder="請輸入數值" />
+              <select data-role="from-unit">
+                <option value="CFM">CFM</option>
+                <option value="CMH">CMH</option>
+                <option value="m3/s">m3/s</option>
+                <option value="L/s">L/s</option>
+                <option value="LPM">LPM</option>
+                <option value="CMM">CMM</option>
+              </select>
+            </div>
+          </section>
           <ul class="result-list" data-role="result-list"></ul>
         </article>
 
         <article class="card" data-type="pressure">
           <h2>壓力</h2>
-          <div class="row">
-            <input type="number" step="any" placeholder="請輸入數值" />
-            <select data-role="from-unit">
-              <option value="Pa">Pa</option>
-              <option value="kPa">kPa</option>
-              <option value="mmAq">mmAq</option>
-              <option value="bar">bar</option>
-              <option value="psi">psi</option>
-              <option value="N/m2">N/m2</option>
-            </select>
-          </div>
+          <section class="form-section">
+            <p class="form-label">輸入壓力</p>
+            <div class="row">
+              <input type="number" step="any" placeholder="請輸入數值" />
+              <select data-role="from-unit">
+                <option value="Pa">Pa</option>
+                <option value="kPa">kPa</option>
+                <option value="mmAq">mmAq</option>
+                <option value="bar">bar</option>
+                <option value="psi">psi</option>
+                <option value="N/m2">N/m2</option>
+              </select>
+            </div>
+          </section>
           <ul class="result-list" data-role="result-list"></ul>
         </article>
 
         <article class="card" data-type="velocity">
           <h2>流速</h2>
-          <div class="row">
-            <input type="number" step="any" placeholder="請輸入數值" />
-            <select data-role="from-unit">
-              <option value="m/s">m/s</option>
-              <option value="ft/s">ft/s</option>
-              <option value="mm/s">mm/s</option>
-              <option value="cm/s">cm/s</option>
-            </select>
-          </div>
+          <section class="form-section">
+            <p class="form-label">輸入流速</p>
+            <div class="row">
+              <input type="number" step="any" placeholder="請輸入數值" />
+              <select data-role="from-unit">
+                <option value="m/s">m/s</option>
+                <option value="ft/s">ft/s</option>
+                <option value="mm/s">mm/s</option>
+                <option value="cm/s">cm/s</option>
+              </select>
+            </div>
+          </section>
           <ul class="result-list" data-role="result-list"></ul>
         </article>
 
         <article class="card" data-type="pipe-sizing">
           <h2>水管管徑建議</h2>
-          <p class="form-label">水流量</p>
-          <div class="row">
-            <input type="number" step="any" data-role="flow-input" placeholder="請輸入水流量" />
-            <select data-role="flow-unit">
-              <option value="LPM">LPM</option>
-              <option value="L/s">L/s</option>
-              <option value="m3/h">m3/h</option>
-              <option value="GPM">GPM</option>
-            </select>
-          </div>
-          <p class="form-label">50A 以上最大流速（m/s）</p>
-          <div class="row">
-            <input type="number" step="any" data-role="max-velocity-input" value="3.0" placeholder="預設 3.0" />
-          </div>
+          <section class="form-section">
+            <p class="section-title">流量條件</p>
+            <p class="form-label">水流量</p>
+            <div class="row">
+              <input type="number" step="any" data-role="flow-input" placeholder="請輸入水流量" />
+              <select data-role="flow-unit">
+                <option value="LPM">LPM</option>
+                <option value="L/s">L/s</option>
+                <option value="m3/h">m3/h</option>
+                <option value="GPM">GPM</option>
+              </select>
+            </div>
+            <p class="form-label">50A 以上最大流速（m/s）</p>
+            <div class="row-single">
+              <input type="number" step="any" data-role="max-velocity-input" value="3.0" placeholder="預設 3.0" />
+            </div>
+          </section>
 
           <ul class="pipe-result" data-role="pipe-result">
             <li><span class="pipe-result-key">建議管徑</span><span class="result-colon">:</span><span class="pipe-result-value">-</span></li>
@@ -238,45 +289,64 @@
             <li><span class="pipe-result-key">設計條件</span><span class="result-colon">:</span><span class="pipe-result-value">-</span></li>
             <li><span class="pipe-result-key">判定</span><span class="result-colon">:</span><span class="pipe-result-value">-</span></li>
           </ul>
+          <p class="sub-note">15A~40A 採 1.2 m/s 上限。</p>
+          <p class="sub-note">50A 以上採設定值，預設 3.0 m/s。</p>
         </article>
 
         <article class="card" data-type="dp-flow">
           <h2>壓差估算流量（設備修正）</h2>
-          <div class="row">
-            <input type="number" step="any" data-role="dp-input" placeholder="請輸入壓差" />
-            <select data-role="dp-unit">
-              <option value="kPa">kPa</option>
-              <option value="bar">bar</option>
-              <option value="psi">psi</option>
-            </select>
-          </div>
-          <p class="form-label">設備參考點</p>
-          <div class="row">
-            <input type="number" step="any" data-role="dp-ref-flow" value="300" placeholder="參考流量（LPM）" />
-            <input type="number" step="any" data-role="dp-ref-pressure" value="30" placeholder="參考壓損" />
-          </div>
-          <div class="row">
-            <select data-role="dp-ref-unit">
-              <option value="kPa">kPa</option>
-              <option value="mAq">mAq</option>
-              <option value="bar">bar</option>
-            </select>
-          </div>
-          <div class="row">
-            <select data-role="dp-pipe-size">
-              <option value="15A">15A</option>
-              <option value="20A">20A</option>
-              <option value="25A">25A</option>
-              <option value="32A">32A</option>
-              <option value="40A">40A</option>
-              <option value="50A">50A</option>
-              <option value="65A">65A</option>
-              <option value="80A">80A</option>
-              <option value="100A">100A</option>
-              <option value="125A">125A</option>
-              <option value="150A">150A</option>
-            </select>
-          </div>
+          <section class="form-section">
+            <p class="section-title">目前量測壓差</p>
+            <p class="form-label">目前壓差</p>
+            <div class="row">
+              <input id="dpInput" type="number" step="any" data-role="dp-input" placeholder="例如 35" />
+              <select id="dpUnit" data-role="dp-unit">
+                <option value="kPa">kPa</option>
+                <option value="mAq">mAq</option>
+                <option value="bar">bar</option>
+                <option value="psi">psi</option>
+              </select>
+            </div>
+          </section>
+
+          <section class="form-section">
+            <p class="section-title">設備已知條件（選機表 / 銘牌）</p>
+            <p class="form-label">參考流量（LPM）</p>
+            <div class="row-single">
+              <input id="refFlow" type="number" step="any" data-role="dp-ref-flow" value="300" placeholder="例如 300" />
+            </div>
+            <p class="form-label">對應壓損</p>
+            <div class="row">
+              <input id="refPressure" type="number" step="any" data-role="dp-ref-pressure" value="30" placeholder="例如 30" />
+              <select id="refPressureUnit" data-role="dp-ref-unit">
+                <option value="kPa">kPa</option>
+                <option value="mAq">mAq</option>
+                <option value="bar">bar</option>
+              </select>
+            </div>
+            <p class="hint">例：選機表顯示 300 LPM 時水側壓損 30 kPa → 填 300 / 30 kPa</p>
+          </section>
+
+          <section class="form-section">
+            <p class="section-title">使用管徑</p>
+            <p class="form-label">管徑</p>
+            <div class="row-single">
+              <select id="dpPipeSize" data-role="dp-pipe-size">
+                <option value="15A">15A</option>
+                <option value="20A">20A</option>
+                <option value="25A">25A</option>
+                <option value="32A">32A</option>
+                <option value="40A">40A</option>
+                <option value="50A">50A</option>
+                <option value="65A">65A</option>
+                <option value="80A">80A</option>
+                <option value="100A">100A</option>
+                <option value="125A">125A</option>
+                <option value="150A">150A</option>
+              </select>
+            </div>
+          </section>
+
           <ul class="dp-result" data-role="dp-result">
             <li><span class="dp-result-key">理想壓差粗估流量（LPM）</span><span class="result-colon">:</span><span class="dp-result-value">-</span></li>
             <li><span class="dp-result-key">設備修正流量（LPM）</span><span class="result-colon">:</span><span class="dp-result-value">-</span></li>
@@ -285,6 +355,28 @@
             <li><span class="dp-result-key">設備參考條件</span><span class="result-colon">:</span><span class="dp-result-value">-</span></li>
             <li><span class="dp-result-key">判定</span><span class="result-colon">:</span><span class="dp-result-value">-</span></li>
             <li><span class="dp-result-key">備註</span><span class="result-colon">:</span><span class="dp-result-value">設備修正流量為依壓損平方關係推估，較接近實務，仍建議搭配廠商曲線確認</span></li>
+          </ul>
+        </article>
+
+        <article class="card" data-type="ahu-estimate">
+          <h2>空調箱溫度粗估（AHU）</h2>
+          <section class="form-section">
+            <p class="form-label">出風溫度（°C）</p>
+            <div class="row-single">
+              <input type="number" step="any" data-role="ahu-supply-air-temp" placeholder="例如 16" />
+            </div>
+            <p class="form-label">系統類型</p>
+            <div class="row-single">
+              <select data-role="ahu-system-type">
+                <option value="CHW">冰水盤管（CHW）</option>
+                <option value="DX">直膨盤管（DX）</option>
+              </select>
+            </div>
+          </section>
+
+          <ul class="ahu-result" data-role="ahu-result">
+            <li><span class="ahu-result-key">推估區間</span><span class="result-colon">:</span><span class="ahu-result-value">-</span></li>
+            <li><span class="ahu-result-key">備註</span><span class="result-colon">:</span><span class="ahu-result-value">此為現場快速粗估值，未考慮風量、回風條件、盤管效率與實際負載，正式設計仍需依設備選機資料確認。</span></li>
           </ul>
         </article>
       </section>
