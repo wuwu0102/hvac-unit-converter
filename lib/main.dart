@@ -33,6 +33,10 @@ class ConverterHomePage extends StatefulWidget {
 }
 
 class _ConverterHomePageState extends State<ConverterHomePage> {
+  static const double _hintFontScale = 1.25;
+  static const double _hintLineHeight = 1.45;
+  static const EdgeInsets _hintVerticalPadding = EdgeInsets.symmetric(vertical: 7);
+
   final _tempController = TextEditingController();
   String _tempUnit = 'C';
 
@@ -208,9 +212,24 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^[-0-9.]*$'))],
-      decoration: InputDecoration(hintText: hint),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: _hintStyle,
+      ),
     );
   }
+
+  TextStyle get _hintStyle => TextStyle(
+        fontSize: 12 * _hintFontScale,
+        height: _hintLineHeight,
+        color: Colors.grey[700],
+      );
+
+  TextStyle get _sectionDescriptionStyle => TextStyle(
+        fontSize: 13 * _hintFontScale,
+        height: _hintLineHeight,
+        color: Colors.grey[700],
+      );
 
   Widget _resultRows(Map<String, String> data) {
     return Column(
@@ -381,7 +400,10 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
             ],
           ),
           const SizedBox(height: 8),
-          const Text('以建議流速 1.2~3.0 m/s 範圍快速挑選可用管徑。', style: TextStyle(fontSize: 12)),
+          Padding(
+            padding: _hintVerticalPadding,
+            child: Text('以建議流速 1.2~3.0 m/s 範圍快速挑選可用管徑。', style: _hintStyle),
+          ),
           const SizedBox(height: 10),
           _resultRows({
             '輸入流量（LPM）': flowLpm == null ? '-' : _formatNumber(flowLpm),
@@ -389,9 +411,12 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
             '參考流速（m/s）': suggestion == null ? '-' : _formatNumber(suggestion.velocity),
           }),
           if (suggestion?.exceedsRecommendedRange ?? false)
-            const Padding(
-              padding: EdgeInsets.only(top: 6),
-              child: Text('已超出建議流速範圍', style: TextStyle(fontSize: 12, color: Colors.red)),
+            Padding(
+              padding: _hintVerticalPadding,
+              child: Text(
+                '已超出建議流速範圍',
+                style: _hintStyle.copyWith(color: Colors.red),
+              ),
             ),
         ],
       ),
@@ -452,14 +477,23 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
           ),
           const Divider(height: 24),
           _resultRows({'預估流量（LPM）': _formatNumber(correctedFlow)}),
-          const Text('（依壓差平方關係與管徑修正推估）', style: TextStyle(fontSize: 12)),
-          const Text('管徑修正：以 25A 為基準，依截面積比例修正。', style: TextStyle(fontSize: 12)),
+          Padding(
+            padding: _hintVerticalPadding,
+            child: Text('（依壓差平方關係與管徑修正推估）', style: _hintStyle),
+          ),
+          Padding(
+            padding: _hintVerticalPadding,
+            child: Text('管徑修正：以 25A 為基準，依截面積比例修正。', style: _hintStyle),
+          ),
           const Divider(height: 24),
           const Text('進階設定：設備已知條件（可選）', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
-          const Text(
-            '若有設備選機表，可填入「某流量下的水側壓損」作為修正基準。若不清楚，可使用預設值快速估算。',
-            style: TextStyle(fontSize: 12),
+          Padding(
+            padding: _hintVerticalPadding,
+            child: Text(
+              '若有設備選機表，可填入「某流量下的水側壓損」作為修正基準。若不清楚，可使用預設值快速估算。',
+              style: _sectionDescriptionStyle,
+            ),
           ),
           const SizedBox(height: 8),
           _numericField(_dpRefFlowController, hint: '參考流量（LPM）'),
@@ -490,7 +524,7 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('HVAC Unit Converter V0.16')),
+      appBar: AppBar(title: const Text('HVAC Unit Converter V0.17')),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
