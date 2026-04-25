@@ -1,0 +1,497 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+void main() {
+  runApp(const HvacConverterApp());
+}
+
+class HvacConverterApp extends StatelessWidget {
+  const HvacConverterApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'HVAC Unit Converter',
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2563EB)),
+        scaffoldBackgroundColor: const Color(0xFFF4F7FC),
+        useMaterial3: true,
+      ),
+      home: const ConverterHomePage(),
+    );
+  }
+}
+
+class ConverterHomePage extends StatefulWidget {
+  const ConverterHomePage({super.key});
+
+  @override
+  State<ConverterHomePage> createState() => _ConverterHomePageState();
+}
+
+class _ConverterHomePageState extends State<ConverterHomePage> {
+  final _tempController = TextEditingController();
+  String _tempUnit = 'C';
+
+  final _airflowController = TextEditingController();
+  String _airflowUnit = 'CFM';
+
+  final _pressureController = TextEditingController();
+  String _pressureUnit = 'Pa';
+
+  final _velocityController = TextEditingController();
+  String _velocityUnit = 'm/s';
+
+  final _pipeFlowController = TextEditingController();
+
+  final _dpMeasuredController = TextEditingController();
+  String _dpMeasuredUnit = 'kPa';
+  String _dpPipeSize = '15A';
+  final _dpRefFlowController = TextEditingController(text: '300');
+  final _dpRefLossController = TextEditingController(text: '30');
+  String _dpRefLossUnit = 'kPa';
+
+  static const _airflowToBase = <String, double>{
+    'CFM': 0.000471947,
+    'CMH': 1 / 3600,
+    'm3/s': 1,
+    'L/s': 0.001,
+    'LPM': 1 / 60000,
+    'CMM': 1 / 60,
+  };
+
+  static const _pressureToPa = <String, double>{
+    'Pa': 1,
+    'kPa': 1000,
+    'mmAq': 9.80665,
+    'bar': 100000,
+    'psi': 6894.76,
+    'N/m2': 1,
+  };
+
+  static const _velocityToMs = <String, double>{
+    'm/s': 1,
+    'ft/s': 1 / 3.28084,
+    'mm/s': 1 / 1000,
+    'cm/s': 1 / 100,
+  };
+
+  static const _dpToPaMap = <String, double>{
+    'kPa': 1000,
+    'mAq': 9806.65,
+    'bar': 100000,
+    'psi': 6894.76,
+  };
+
+  static const List<PipeSize> _pipeSizeList = [
+    PipeSize(a: '15A', inchDn: '1/2" / DN15', innerDiameterMm: 15.8),
+    PipeSize(a: '20A', inchDn: '3/4" / DN20', innerDiameterMm: 20.9),
+    PipeSize(a: '25A', inchDn: '1" / DN25', innerDiameterMm: 26.6),
+    PipeSize(a: '32A', inchDn: '1-1/4" / DN32', innerDiameterMm: 35.1),
+    PipeSize(a: '40A', inchDn: '1-1/2" / DN40', innerDiameterMm: 40.9),
+    PipeSize(a: '50A', inchDn: '2" / DN50', innerDiameterMm: 52.5),
+    PipeSize(a: '65A', inchDn: '2-1/2" / DN65', innerDiameterMm: 62.7),
+    PipeSize(a: '80A', inchDn: '3" / DN80', innerDiameterMm: 77.9),
+    PipeSize(a: '100A', inchDn: '4" / DN100', innerDiameterMm: 102.3),
+    PipeSize(a: '125A', inchDn: '5" / DN125', innerDiameterMm: 128.2),
+    PipeSize(a: '150A', inchDn: '6" / DN150', innerDiameterMm: 154.1),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    for (final controller in [
+      _tempController,
+      _airflowController,
+      _pressureController,
+      _velocityController,
+      _pipeFlowController,
+      _dpMeasuredController,
+      _dpRefFlowController,
+      _dpRefLossController,
+    ]) {
+      controller.addListener(_handleInputChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final controller in [
+      _tempController,
+      _airflowController,
+      _pressureController,
+      _velocityController,
+      _pipeFlowController,
+      _dpMeasuredController,
+      _dpRefFlowController,
+      _dpRefLossController,
+    ]) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void _handleInputChanged() {
+    setState(() {});
+  }
+
+  double? _parsePositive(String value) {
+    final v = double.tryParse(value.trim());
+    if (v == null || !v.isFinite || v <= 0) return null;
+    return v;
+  }
+
+  double? _parseAny(String value) {
+    final v = double.tryParse(value.trim());
+    if (v == null || !v.isFinite) return null;
+    return v;
+  }
+
+  String _formatNumber(double? value) {
+    if (value == null || !value.isFinite) return '-';
+    return value.toStringAsFixed(4);
+  }
+
+  double _pipeAreaM2(PipeSize pipe) {
+    final diameterM = pipe.innerDiameterMm / 1000;
+    return math.pi * diameterM * diameterM / 4;
+  }
+
+  PipeSuggestion _suggestPipe(double flowLpm) {
+    final flowM3s = flowLpm / 60000;
+    final candidate = _pipeSizeList.firstWhere(
+      (pipe) {
+        final velocity = flowM3s / _pipeAreaM2(pipe);
+        final a = int.parse(pipe.a.replaceAll('A', ''));
+        final limit = a <= 40 ? 1.2 : 3.0;
+        return velocity <= limit;
+      },
+      orElse: () => _pipeSizeList.last,
+    );
+    final velocity = flowM3s / _pipeAreaM2(candidate);
+    return PipeSuggestion(pipe: candidate, velocity: velocity);
+  }
+
+  Widget _numericField(
+    TextEditingController controller, {
+    String? hint,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^[-0-9.]*$'))],
+      decoration: InputDecoration(hintText: hint),
+    );
+  }
+
+  Widget _resultRows(Map<String, String> data) {
+    return Column(
+      children: data.entries
+          .map(
+            (entry) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: Text(entry.key)),
+                  const SizedBox(width: 8),
+                  Text(entry.value, style: const TextStyle(fontFamily: 'monospace')),
+                ],
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  Widget _converterCard({required String title, required Widget child}) {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _temperatureCard() {
+    final input = _parseAny(_tempController.text);
+    String result = '-';
+    if (input != null) {
+      final celsius = _tempUnit == 'C' ? input : (input - 32) * (5 / 9);
+      final targetUnit = _tempUnit == 'C' ? 'F' : 'C';
+      final output = targetUnit == 'C' ? celsius : celsius * (9 / 5) + 32;
+      result = '$targetUnit：${_formatNumber(output)}';
+    }
+
+    return _converterCard(
+      title: '溫度轉換',
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: _numericField(_tempController, hint: '請輸入數值')),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 110,
+                child: DropdownButtonFormField<String>(
+                  value: _tempUnit,
+                  items: const ['C', 'F']
+                      .map((u) => DropdownMenuItem(value: u, child: Text(u)))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _tempUnit = value);
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Align(alignment: Alignment.centerLeft, child: Text('結果：$result')),
+        ],
+      ),
+    );
+  }
+
+  Widget _multiUnitCard({
+    required String title,
+    required TextEditingController controller,
+    required String selectedUnit,
+    required List<String> units,
+    required Map<String, double> toBase,
+    required ValueChanged<String> onUnitChanged,
+  }) {
+    final input = _parseAny(controller.text);
+    final base = input == null ? null : input * toBase[selectedUnit]!;
+
+    final results = <String, String>{
+      for (final unit in units)
+        if (unit != selectedUnit)
+          unit: base == null ? '-' : _formatNumber(base / toBase[unit]!),
+    };
+
+    return _converterCard(
+      title: title,
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: _numericField(controller, hint: '請輸入數值')),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 130,
+                child: DropdownButtonFormField<String>(
+                  value: selectedUnit,
+                  items: units
+                      .map((u) => DropdownMenuItem(value: u, child: Text(u)))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    onUnitChanged(value);
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _resultRows(results),
+        ],
+      ),
+    );
+  }
+
+  Widget _pipeSuggestionCard() {
+    final flowLpm = _parsePositive(_pipeFlowController.text);
+    final suggestion = flowLpm == null ? null : _suggestPipe(flowLpm);
+    return _converterCard(
+      title: '水管管徑建議',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _numericField(_pipeFlowController, hint: '設計流量（LPM），例如 300'),
+          const SizedBox(height: 8),
+          const Text('以建議流速 1.2~3.0 m/s 範圍快速挑選可用管徑。', style: TextStyle(fontSize: 12)),
+          const SizedBox(height: 10),
+          _resultRows({
+            '建議管徑': suggestion == null ? '-' : '${suggestion.pipe.a} / ${suggestion.pipe.inchDn}',
+            '參考流速（m/s）': suggestion == null ? '-' : _formatNumber(suggestion.velocity),
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _dpFlowCard() {
+    final measured = _parsePositive(_dpMeasuredController.text);
+    final refFlow = _parsePositive(_dpRefFlowController.text);
+    final refLoss = _parsePositive(_dpRefLossController.text);
+
+    double? correctedFlow;
+    if (measured != null && refFlow != null && refLoss != null) {
+      final measuredPa = measured * _dpToPaMap[_dpMeasuredUnit]!;
+      final refDpPa = refLoss * _dpToPaMap[_dpRefLossUnit]!;
+      if (measuredPa > 0 && refDpPa > 0) {
+        correctedFlow = refFlow * math.sqrt(measuredPa / refDpPa);
+      }
+    }
+
+    return _converterCard(
+      title: '壓差估算流量（設備修正）',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('目前量測條件', style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _numericField(_dpMeasuredController, hint: '目前量測壓差')),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 120,
+                child: DropdownButtonFormField<String>(
+                  value: _dpMeasuredUnit,
+                  items: const ['kPa', 'mAq', 'bar', 'psi']
+                      .map((u) => DropdownMenuItem(value: u, child: Text(u)))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _dpMeasuredUnit = value);
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: _dpPipeSize,
+            decoration: const InputDecoration(labelText: '使用管徑'),
+            items: _pipeSizeList
+                .map((p) => DropdownMenuItem(value: p.a, child: Text(p.a)))
+                .toList(),
+            onChanged: (value) {
+              if (value == null) return;
+              setState(() => _dpPipeSize = value);
+            },
+          ),
+          const Divider(height: 24),
+          _resultRows({'預估流量（LPM）': _formatNumber(correctedFlow)}),
+          const Text('（依壓差平方關係推估）', style: TextStyle(fontSize: 12)),
+          const Divider(height: 24),
+          const Text('進階設定：設備已知條件（可選）', style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 6),
+          const Text(
+            '若有設備選機表，可填入「某流量下的水側壓損」作為修正基準。若不清楚，可使用預設值快速估算。',
+            style: TextStyle(fontSize: 12),
+          ),
+          const SizedBox(height: 8),
+          _numericField(_dpRefFlowController, hint: '參考流量（LPM）'),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _numericField(_dpRefLossController, hint: '對應水側壓損')),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 120,
+                child: DropdownButtonFormField<String>(
+                  value: _dpRefLossUnit,
+                  items: const ['kPa', 'mAq', 'bar']
+                      .map((u) => DropdownMenuItem(value: u, child: Text(u)))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _dpRefLossUnit = value);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('HVAC Unit Converter V0.13')),
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final columns = width >= 1180 ? 3 : width >= 760 ? 2 : 1;
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(12),
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _temperatureCard()),
+                SizedBox(
+                  width: (width - (columns - 1) * 12) / columns,
+                  child: _multiUnitCard(
+                    title: '流量轉換',
+                    controller: _airflowController,
+                    selectedUnit: _airflowUnit,
+                    units: _airflowToBase.keys.toList(),
+                    toBase: _airflowToBase,
+                    onUnitChanged: (u) => setState(() => _airflowUnit = u),
+                  ),
+                ),
+                SizedBox(
+                  width: (width - (columns - 1) * 12) / columns,
+                  child: _multiUnitCard(
+                    title: '壓力轉換',
+                    controller: _pressureController,
+                    selectedUnit: _pressureUnit,
+                    units: _pressureToPa.keys.toList(),
+                    toBase: _pressureToPa,
+                    onUnitChanged: (u) => setState(() => _pressureUnit = u),
+                  ),
+                ),
+                SizedBox(
+                  width: (width - (columns - 1) * 12) / columns,
+                  child: _multiUnitCard(
+                    title: '流速轉換',
+                    controller: _velocityController,
+                    selectedUnit: _velocityUnit,
+                    units: _velocityToMs.keys.toList(),
+                    toBase: _velocityToMs,
+                    onUnitChanged: (u) => setState(() => _velocityUnit = u),
+                  ),
+                ),
+                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _pipeSuggestionCard()),
+                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _dpFlowCard()),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class PipeSize {
+  final String a;
+  final String inchDn;
+  final double innerDiameterMm;
+
+  const PipeSize({required this.a, required this.inchDn, required this.innerDiameterMm});
+}
+
+class PipeSuggestion {
+  final PipeSize pipe;
+  final double velocity;
+
+  const PipeSuggestion({required this.pipe, required this.velocity});
+}
