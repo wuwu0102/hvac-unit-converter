@@ -46,6 +46,7 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
   String _velocityUnit = 'm/s';
 
   final _pipeFlowController = TextEditingController();
+  String _pipeFlowUnit = 'LPM';
 
   final _dpMeasuredController = TextEditingController();
   String _dpMeasuredUnit = 'kPa';
@@ -164,8 +165,26 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
     return math.pi * diameterM * diameterM / 4;
   }
 
-  PipeSuggestion _suggestPipe(double flowLpm) {
-    final flowM3s = flowLpm / 60000;
+  double convertToLpm(double value, String unit) {
+    switch (unit) {
+      case 'CFM':
+        return value * 28.3168;
+      case 'CMH':
+        return value * 1000 / 60;
+      case 'm3/s':
+        return value * 60000;
+      case 'L/s':
+        return value * 60;
+      case 'LPM':
+        return value;
+      case 'CMM':
+        return value * 1000;
+      default:
+        return value;
+    }
+  }
+
+  PipeSuggestion _suggestPipe(double flowM3s) {
     final candidate = _pipeSizeList.firstWhere(
       (pipe) {
         final velocity = flowM3s / _pipeAreaM2(pipe);
@@ -319,18 +338,39 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
   }
 
   Widget _pipeSuggestionCard() {
-    final flowLpm = _parsePositive(_pipeFlowController.text);
-    final suggestion = flowLpm == null ? null : _suggestPipe(flowLpm);
+    final inputValue = _parsePositive(_pipeFlowController.text);
+    final flowLpm = inputValue == null ? null : convertToLpm(inputValue, _pipeFlowUnit);
+    final flowM3s = flowLpm == null ? null : flowLpm / 60000;
+    final suggestion = flowM3s == null ? null : _suggestPipe(flowM3s);
     return _converterCard(
       title: '流量對應管徑',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _numericField(_pipeFlowController, hint: '設計流量（LPM），例如 300'),
+          Row(
+            children: [
+              Expanded(child: _numericField(_pipeFlowController, hint: '設計流量，例如 300')),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 120,
+                child: DropdownButtonFormField<String>(
+                  value: _pipeFlowUnit,
+                  items: const ['CFM', 'CMH', 'm3/s', 'L/s', 'LPM', 'CMM']
+                      .map((u) => DropdownMenuItem(value: u, child: Text(u)))
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _pipeFlowUnit = value);
+                  },
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
           const Text('以建議流速 1.2~3.0 m/s 範圍快速挑選可用管徑。', style: TextStyle(fontSize: 12)),
           const SizedBox(height: 10),
           _resultRows({
+            '輸入流量（LPM）': flowLpm == null ? '-' : _formatNumber(flowLpm),
             '建議管徑': suggestion == null ? '-' : '${suggestion.pipe.a} / ${suggestion.pipe.inchDn}',
             '參考流速（m/s）': suggestion == null ? '-' : _formatNumber(suggestion.velocity),
           }),
@@ -440,7 +480,7 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('HVAC Unit Converter V0.14')),
+      appBar: AppBar(title: const Text('HVAC Unit Converter V0.15')),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
