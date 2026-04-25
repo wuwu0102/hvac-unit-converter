@@ -232,6 +232,22 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
     );
   }
 
+  Widget _mobileSafeSelector({
+    required String label,
+    required String sheetTitle,
+    required String value,
+    required List<SelectorOption<String>> options,
+    required ValueChanged<String> onChanged,
+  }) {
+    return MobileSafeSelector<String>(
+      label: label,
+      sheetTitle: sheetTitle,
+      value: value,
+      options: options,
+      onChanged: onChanged,
+    );
+  }
+
   Widget _converterCard({required String title, required Widget child}) {
     return Card(
       elevation: 1,
@@ -270,15 +286,15 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
               const SizedBox(width: 8),
               SizedBox(
                 width: 110,
-                child: DropdownButtonFormField<String>(
+                child: _mobileSafeSelector(
+                  label: '溫度單位',
+                  sheetTitle: '請選擇單位',
                   value: _tempUnit,
-                  items: const ['C', 'F']
-                      .map((u) => DropdownMenuItem(value: u, child: Text(u)))
-                      .toList(),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() => _tempUnit = value);
-                  },
+                  options: const [
+                    SelectorOption(value: 'C', label: 'C'),
+                    SelectorOption(value: 'F', label: 'F'),
+                  ],
+                  onChanged: (value) => setState(() => _tempUnit = value),
                 ),
               ),
             ],
@@ -317,15 +333,14 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
               const SizedBox(width: 8),
               SizedBox(
                 width: 130,
-                child: DropdownButtonFormField<String>(
+                child: _mobileSafeSelector(
+                  label: '$title 單位',
+                  sheetTitle: '請選擇單位',
                   value: selectedUnit,
-                  items: units
-                      .map((u) => DropdownMenuItem(value: u, child: Text(u)))
+                  options: units
+                      .map((u) => SelectorOption(value: u, label: u))
                       .toList(),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    onUnitChanged(value);
-                  },
+                  onChanged: onUnitChanged,
                 ),
               ),
             ],
@@ -353,15 +368,14 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
               const SizedBox(width: 8),
               SizedBox(
                 width: 120,
-                child: DropdownButtonFormField<String>(
+                child: _mobileSafeSelector(
+                  label: '流量單位',
+                  sheetTitle: '請選擇單位',
                   value: _pipeFlowUnit,
-                  items: const ['CFM', 'CMH', 'm3/s', 'L/s', 'LPM', 'CMM']
-                      .map((u) => DropdownMenuItem(value: u, child: Text(u)))
-                      .toList(),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() => _pipeFlowUnit = value);
-                  },
+                  options: const ['CFM', 'CMH', 'm3/s', 'L/s', 'LPM', 'CMM']
+                      .map((u) => SelectorOption(value: u, label: u))
+                      .toList(growable: false),
+                  onChanged: (value) => setState(() => _pipeFlowUnit = value),
                 ),
               ),
             ],
@@ -414,30 +428,27 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
               const SizedBox(width: 8),
               SizedBox(
                 width: 120,
-                child: DropdownButtonFormField<String>(
+                child: _mobileSafeSelector(
+                  label: '壓差單位',
+                  sheetTitle: '請選擇單位',
                   value: _dpMeasuredUnit,
-                  items: const ['kPa', 'mAq', 'bar', 'psi']
-                      .map((u) => DropdownMenuItem(value: u, child: Text(u)))
-                      .toList(),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() => _dpMeasuredUnit = value);
-                  },
+                  options: const ['kPa', 'mAq', 'bar', 'psi']
+                      .map((u) => SelectorOption(value: u, label: u))
+                      .toList(growable: false),
+                  onChanged: (value) => setState(() => _dpMeasuredUnit = value),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
+          _mobileSafeSelector(
+            label: '使用管徑',
+            sheetTitle: '請選擇管徑',
             value: _dpPipeSize,
-            decoration: const InputDecoration(labelText: '使用管徑'),
-            items: _pipeSizeList
-                .map((p) => DropdownMenuItem(value: p.a, child: Text(p.a)))
+            options: _pipeSizeList
+                .map((p) => SelectorOption(value: p.a, label: '${p.a} / ${p.inchDn}'))
                 .toList(),
-            onChanged: (value) {
-              if (value == null) return;
-              setState(() => _dpPipeSize = value);
-            },
+            onChanged: (value) => setState(() => _dpPipeSize = value),
           ),
           const Divider(height: 24),
           _resultRows({'預估流量（LPM）': _formatNumber(correctedFlow)}),
@@ -459,15 +470,14 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
               const SizedBox(width: 8),
               SizedBox(
                 width: 120,
-                child: DropdownButtonFormField<String>(
+                child: _mobileSafeSelector(
+                  label: '參考壓損單位',
+                  sheetTitle: '請選擇單位',
                   value: _dpRefLossUnit,
-                  items: const ['kPa', 'mAq', 'bar']
-                      .map((u) => DropdownMenuItem(value: u, child: Text(u)))
-                      .toList(),
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() => _dpRefLossUnit = value);
-                  },
+                  options: const ['kPa', 'mAq', 'bar']
+                      .map((u) => SelectorOption(value: u, label: u))
+                      .toList(growable: false),
+                  onChanged: (value) => setState(() => _dpRefLossUnit = value),
                 ),
               ),
             ],
@@ -480,7 +490,7 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('HVAC Unit Converter V0.15')),
+      appBar: AppBar(title: const Text('HVAC Unit Converter V0.16')),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
@@ -554,4 +564,106 @@ class PipeSuggestion {
     required this.velocity,
     required this.exceedsRecommendedRange,
   });
+}
+
+class SelectorOption<T> {
+  final T value;
+  final String label;
+
+  const SelectorOption({required this.value, required this.label});
+}
+
+class MobileSafeSelector<T> extends StatelessWidget {
+  final String label;
+  final String sheetTitle;
+  final T value;
+  final List<SelectorOption<T>> options;
+  final ValueChanged<T> onChanged;
+
+  const MobileSafeSelector({
+    super.key,
+    required this.label,
+    required this.sheetTitle,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = options.firstWhere((option) => option.value == value);
+    return InputDecorator(
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              selected.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Container(
+            width: 1,
+            height: 30,
+            color: Theme.of(context).dividerColor,
+          ),
+          IconButton(
+            tooltip: '開啟選單',
+            visualDensity: VisualDensity.standard,
+            icon: const Icon(Icons.keyboard_arrow_down),
+            onPressed: () => _showSelectorBottomSheet(context),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showSelectorBottomSheet(BuildContext context) async {
+    final selected = await showModalBottomSheet<T>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    sheetTitle,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+              ),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: options
+                      .map(
+                        (option) => ListTile(
+                          title: Text(option.label),
+                          trailing: option.value == value ? const Icon(Icons.check) : null,
+                          onTap: () => Navigator.of(sheetContext).pop(option.value),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (selected != null && selected != value) {
+      onChanged(selected);
+    }
+  }
 }
