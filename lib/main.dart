@@ -98,6 +98,10 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
     PipeSize(a: '100A', inchDn: '4" / DN100', innerDiameterMm: 102.3),
     PipeSize(a: '125A', inchDn: '5" / DN125', innerDiameterMm: 128.2),
     PipeSize(a: '150A', inchDn: '6" / DN150', innerDiameterMm: 154.1),
+    PipeSize(a: '200A', inchDn: '8" / DN200', innerDiameterMm: 202.7),
+    PipeSize(a: '250A', inchDn: '10" / DN250', innerDiameterMm: 254.5),
+    PipeSize(a: '300A', inchDn: '12" / DN300', innerDiameterMm: 303.2),
+    PipeSize(a: '350A', inchDn: '14" / DN350', innerDiameterMm: 333.4),
   ];
 
   @override
@@ -172,7 +176,9 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
       orElse: () => _pipeSizeList.last,
     );
     final velocity = flowM3s / _pipeAreaM2(candidate);
-    return PipeSuggestion(pipe: candidate, velocity: velocity);
+    final a = int.parse(candidate.a.replaceAll('A', ''));
+    final limit = a <= 40 ? 1.2 : 3.0;
+    return PipeSuggestion(pipe: candidate, velocity: velocity, exceedsRecommendedRange: velocity > limit);
   }
 
   Widget _numericField(
@@ -316,7 +322,7 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
     final flowLpm = _parsePositive(_pipeFlowController.text);
     final suggestion = flowLpm == null ? null : _suggestPipe(flowLpm);
     return _converterCard(
-      title: '水管管徑建議',
+      title: '流量對應管徑',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -328,6 +334,11 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
             '建議管徑': suggestion == null ? '-' : '${suggestion.pipe.a} / ${suggestion.pipe.inchDn}',
             '參考流速（m/s）': suggestion == null ? '-' : _formatNumber(suggestion.velocity),
           }),
+          if (suggestion?.exceedsRecommendedRange ?? false)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Text('已超出建議流速範圍', style: TextStyle(fontSize: 12, color: Colors.red)),
+            ),
         ],
       ),
     );
@@ -337,13 +348,16 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
     final measured = _parsePositive(_dpMeasuredController.text);
     final refFlow = _parsePositive(_dpRefFlowController.text);
     final refLoss = _parsePositive(_dpRefLossController.text);
+    final selectedPipe = _pipeSizeList.firstWhere((pipe) => pipe.a == _dpPipeSize);
+    final refPipe = _pipeSizeList.firstWhere((pipe) => pipe.a == '25A');
+    final areaRatio = _pipeAreaM2(selectedPipe) / _pipeAreaM2(refPipe);
 
     double? correctedFlow;
     if (measured != null && refFlow != null && refLoss != null) {
       final measuredPa = measured * _dpToPaMap[_dpMeasuredUnit]!;
       final refDpPa = refLoss * _dpToPaMap[_dpRefLossUnit]!;
       if (measuredPa > 0 && refDpPa > 0) {
-        correctedFlow = refFlow * math.sqrt(measuredPa / refDpPa);
+        correctedFlow = refFlow * math.sqrt(measuredPa / refDpPa) * areaRatio;
       }
     }
 
@@ -387,7 +401,8 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
           ),
           const Divider(height: 24),
           _resultRows({'預估流量（LPM）': _formatNumber(correctedFlow)}),
-          const Text('（依壓差平方關係推估）', style: TextStyle(fontSize: 12)),
+          const Text('（依壓差平方關係與管徑修正推估）', style: TextStyle(fontSize: 12)),
+          const Text('管徑修正：以 25A 為基準，依截面積比例修正。', style: TextStyle(fontSize: 12)),
           const Divider(height: 24),
           const Text('進階設定：設備已知條件（可選）', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
@@ -425,7 +440,7 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('HVAC Unit Converter V0.13')),
+      appBar: AppBar(title: const Text('HVAC Unit Converter V0.14')),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
@@ -492,6 +507,11 @@ class PipeSize {
 class PipeSuggestion {
   final PipeSize pipe;
   final double velocity;
+  final bool exceedsRecommendedRange;
 
-  const PipeSuggestion({required this.pipe, required this.velocity});
+  const PipeSuggestion({
+    required this.pipe,
+    required this.velocity,
+    required this.exceedsRecommendedRange,
+  });
 }
