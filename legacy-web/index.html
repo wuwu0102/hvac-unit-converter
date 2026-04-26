@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>HVAC Unit Converter V0.12</title>
+    <title>HVAC Unit Converter V0.13</title>
     <style>
       :root {
         color-scheme: light;
@@ -31,6 +31,17 @@
         font-size: 1.55rem;
       }
 
+
+      .group-title {
+        margin: 8px 0 10px;
+        font-size: 1.08rem;
+        color: #0f172a;
+      }
+
+      .result-highlight {
+        font-size: 1.05rem;
+        font-weight: 700;
+      }
       .grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -187,7 +198,8 @@
   </head>
   <body>
     <main class="container">
-      <h1>HVAC Unit Converter V0.12</h1>
+      <h1>HVAC Unit Converter V0.13</h1>
+      <h2 class="group-title">HVAC / 流體工具</h2>
       <section class="grid">
         <article class="card" data-type="temp">
           <h2>溫度</h2>
@@ -307,6 +319,122 @@
           </section>
         </article>
 
+      </section>
+
+      <h2 class="group-title">電力</h2>
+      <section class="grid">
+        <article class="card" data-type="electrical-conversion">
+          <h2>電力單位換算</h2>
+          <section class="form-section">
+            <label class="form-label">輸入功率</label>
+            <div class="row">
+              <input type="number" step="any" placeholder="請輸入數值" data-role="power-value" />
+              <select data-role="power-unit">
+                <option value="W">W</option>
+                <option value="kW">kW</option>
+                <option value="MW">MW</option>
+                <option value="HP">HP</option>
+              </select>
+            </div>
+          </section>
+          <section class="result-section">
+            <h3 class="section-title">換算結果</h3>
+            <ul class="result-list" data-role="result-list"></ul>
+          </section>
+        </article>
+
+        <article class="card" data-type="three-phase-power">
+          <h2>三相電力估算</h2>
+          <section class="form-section">
+            <div class="field">
+              <label class="form-label">電壓 V</label>
+              <input type="number" step="any" data-role="voltage" placeholder="例如 380" />
+            </div>
+            <div class="field">
+              <label class="form-label">電流 A</label>
+              <input type="number" step="any" data-role="current" placeholder="例如 30" />
+            </div>
+            <div class="field">
+              <label class="form-label">功率因數 PF</label>
+              <input type="number" step="any" data-role="pf" value="0.85" placeholder="預設 0.85" />
+            </div>
+          </section>
+          <section class="result-section">
+            <h3 class="section-title">估算結果</h3>
+            <ul class="dp-result" data-role="three-phase-result">
+              <li><span class="dp-key">視在功率（kVA）</span><span class="result-colon">:</span><span class="dp-value result-highlight">-</span></li>
+              <li><span class="dp-key">有效功率（kW）</span><span class="result-colon">:</span><span class="dp-value result-highlight">-</span></li>
+            </ul>
+            <p class="sub-note">三相平衡負載粗估，正式設計仍需依實際設備銘牌與電氣規範確認。</p>
+          </section>
+        </article>
+
+        <article class="card" data-type="single-phase-power">
+          <h2>單相電力估算</h2>
+          <section class="form-section">
+            <div class="field">
+              <label class="form-label">電壓 V</label>
+              <input type="number" step="any" data-role="voltage" placeholder="例如 220" />
+            </div>
+            <div class="field">
+              <label class="form-label">電流 A</label>
+              <input type="number" step="any" data-role="current" placeholder="例如 15" />
+            </div>
+            <div class="field">
+              <label class="form-label">功率因數 PF</label>
+              <input type="number" step="any" data-role="pf" value="1" placeholder="預設 1.0" />
+            </div>
+          </section>
+          <section class="result-section">
+            <h3 class="section-title">估算結果</h3>
+            <ul class="dp-result" data-role="single-phase-result">
+              <li><span class="dp-key">視在功率（kVA）</span><span class="result-colon">:</span><span class="dp-value result-highlight">-</span></li>
+              <li><span class="dp-key">有效功率（kW）</span><span class="result-colon">:</span><span class="dp-value result-highlight">-</span></li>
+            </ul>
+            <p class="sub-note">單相負載粗估，正式設計仍需依實際設備銘牌與電氣規範確認。</p>
+          </section>
+        </article>
+
+        <article class="card" data-type="current-estimate">
+          <h2>電流估算</h2>
+          <section class="form-section">
+            <p class="hint">已知功率時，快速估算電流。</p>
+            <div class="field">
+              <label class="form-label">功率數值</label>
+              <input type="number" step="any" data-role="power" placeholder="例如 10" />
+            </div>
+            <div class="field">
+              <label class="form-label">功率單位</label>
+              <select data-role="power-unit">
+                <option value="W">W</option>
+                <option value="kW">kW</option>
+                <option value="HP">HP</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="form-label">電壓 V</label>
+              <input type="number" step="any" data-role="voltage" placeholder="例如 380" />
+            </div>
+            <div class="field">
+              <label class="form-label">相數</label>
+              <select data-role="phase">
+                <option value="three">三相</option>
+                <option value="single">單相</option>
+              </select>
+            </div>
+            <div class="field">
+              <label class="form-label">功率因數 PF</label>
+              <input type="number" step="any" data-role="pf" value="0.85" placeholder="預設 0.85" />
+            </div>
+          </section>
+          <section class="result-section">
+            <h3 class="section-title">估算結果</h3>
+            <ul class="dp-result" data-role="current-result">
+              <li><span class="dp-key">預估電流（A）</span><span class="result-colon">:</span><span class="dp-value result-highlight">-</span></li>
+            </ul>
+            <p class="sub-note">此為依有效功率反推電流之粗估值，未考慮啟動電流、效率、諧波與安全係數。</p>
+          </section>
+        </article>
       </section>
     </main>
 
