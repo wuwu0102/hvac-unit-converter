@@ -74,13 +74,34 @@ const conversionMap = {
       };
       return value * fromMs[toUnit];
     }
+  },
+  'electrical-conversion': {
+    toBase(value, fromUnit) {
+      const toW = {
+        W: 1,
+        kW: 1000,
+        MW: 1000000,
+        HP: 745.7
+      };
+      return value * toW[fromUnit];
+    },
+    fromBase(value, toUnit) {
+      const fromW = {
+        W: 1,
+        kW: 1 / 1000,
+        MW: 1 / 1000000,
+        HP: 1 / 745.7
+      };
+      return value * fromW[toUnit];
+    }
   }
 };
 
 const unitMap = {
   airflow: ['CFM', 'CMH', 'm3/s', 'L/s', 'LPM', 'CMM'],
   pressure: ['Pa', 'kPa', 'mmAq', 'bar', 'psi', 'N/m2'],
-  velocity: ['m/s', 'ft/s', 'mm/s', 'cm/s']
+  velocity: ['m/s', 'ft/s', 'mm/s', 'cm/s'],
+  'electrical-conversion': ['W', 'kW', 'MW', 'HP']
 };
 
 const dpToPaMap = {
@@ -106,6 +127,13 @@ const pipeSizeList = [
 
 function formatNumber(value) {
   return Number.isFinite(value) ? value.toFixed(4) : '-';
+}
+
+function parsePf(rawPf, defaultPf) {
+  const pf = Number(rawPf ?? '');
+  if (!Number.isFinite(pf) || pf <= 0) return defaultPf;
+  if (pf > 1) return 1;
+  return pf;
 }
 
 function renderList(resultList, units, textByUnit) {
@@ -213,14 +241,107 @@ function initializeDpFlowCard(card) {
   return true;
 }
 
+function initializePowerEstimateCard(card, type) {
+  const voltageInput = card.querySelector('[data-role="voltage"]');
+  const currentInput = card.querySelector('[data-role="current"]');
+  const pfInput = card.querySelector('[data-role="pf"]');
+  const resultRole = type === 'three-phase-power' ? 'three-phase-result' : 'single-phase-result';
+  const result = card.querySelector(`[data-role="${resultRole}"]`);
+  const defaultPf = type === 'three-phase-power' ? 0.85 : 1.0;
+
+  if (!voltageInput || !currentInput || !pfInput || !result) return false;
+
+  function reset() {
+    updateResultRow(result, 'dp-key', 'dp-value', '視在功率（kVA）', '-');
+    updateResultRow(result, 'dp-key', 'dp-value', '有效功率（kW）', '-');
+  }
+
+  function update() {
+    const rawV = voltageInput.value ?? '';
+    const rawA = currentInput.value ?? '';
+
+    if (rawV.trim() === '' || rawA.trim() === '') return reset();
+
+    const voltage = Number(rawV);
+    const current = Number(rawA);
+    if (!Number.isFinite(voltage) || !Number.isFinite(current) || voltage <= 0 || current <= 0) return reset();
+
+    const pf = parsePf(pfInput.value, defaultPf);
+    const factor = type === 'three-phase-power' ? Math.sqrt(3) : 1;
+
+    const kva = factor * voltage * current / 1000;
+    const kw = factor * voltage * current * pf / 1000;
+
+    updateResultRow(result, 'dp-key', 'dp-value', '視在功率（kVA）', formatNumber(kva));
+    updateResultRow(result, 'dp-key', 'dp-value', '有效功率（kW）', formatNumber(kw));
+  }
+
+  [voltageInput, currentInput, pfInput].forEach((el) => {
+    el.addEventListener('input', update);
+    el.addEventListener('change', update);
+  });
+
+  update();
+  return true;
+}
+
+function initializeCurrentEstimateCard(card) {
+  const powerInput = card.querySelector('[data-role="power"]');
+  const powerUnit = card.querySelector('[data-role="power-unit"]');
+  const voltageInput = card.querySelector('[data-role="voltage"]');
+  const phaseSelect = card.querySelector('[data-role="phase"]');
+  const pfInput = card.querySelector('[data-role="pf"]');
+  const result = card.querySelector('[data-role="current-result"]');
+
+  if (!powerInput || !powerUnit || !voltageInput || !phaseSelect || !pfInput || !result) return false;
+
+  function reset() {
+    updateResultRow(result, 'dp-key', 'dp-value', '預估電流（A）', '-');
+  }
+
+  function toKw(value, unit) {
+    if (unit === 'W') return value / 1000;
+    if (unit === 'HP') return value * 0.7457;
+    return value;
+  }
+
+  function update() {
+    const rawPower = powerInput.value ?? '';
+    const rawVoltage = voltageInput.value ?? '';
+
+    if (rawPower.trim() === '' || rawVoltage.trim() === '') return reset();
+
+    const power = Number(rawPower);
+    const voltage = Number(rawVoltage);
+    if (!Number.isFinite(power) || !Number.isFinite(voltage) || power <= 0 || voltage <= 0) return reset();
+
+    const pf = parsePf(pfInput.value, 0.85);
+    const kw = toKw(power, powerUnit.value);
+    const factor = phaseSelect.value === 'single' ? 1 : Math.sqrt(3);
+    const current = kw * 1000 / (voltage * pf * factor);
+
+    updateResultRow(result, 'dp-key', 'dp-value', '預估電流（A）', formatNumber(current));
+  }
+
+  [powerInput, powerUnit, voltageInput, phaseSelect, pfInput].forEach((el) => {
+    el.addEventListener('input', update);
+    el.addEventListener('change', update);
+  });
+
+  update();
+  return true;
+}
+
 function initializeCard(card) {
   const type = card?.dataset?.type || 'unknown';
 
   if (type === 'pipe-suggest') return initializePipeSuggestCard(card);
   if (type === 'dp-flow') return initializeDpFlowCard(card);
+  if (type === 'three-phase-power' || type === 'single-phase-power') return initializePowerEstimateCard(card, type);
+  if (type === 'current-estimate') return initializeCurrentEstimateCard(card);
 
   const input = card.querySelector('input');
-  const fromSelect = card.querySelector('[data-role="from-unit"]');
+  const fromSelect = card.querySelector('[data-role="from-unit"], [data-role="power-unit"]');
   const result = card.querySelector('.result');
   const resultList = card.querySelector('[data-role="result-list"]');
 
