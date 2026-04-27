@@ -41,6 +41,44 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
+      - name: Flutter analyze
+        run: flutter analyze
+
+      - name: Check App Store Connect secrets
+        run: |
+          set -euo pipefail
+          [ -n "${APPSTORE_ISSUER_ID:-}" ] || { echo "Missing APPSTORE_ISSUER_ID"; exit 1; }
+          [ -n "${APPSTORE_KEY_ID:-}" ] || { echo "Missing APPSTORE_KEY_ID"; exit 1; }
+          [ -n "${APPSTORE_PRIVATE_KEY:-}" ] || { echo "Missing APPSTORE_PRIVATE_KEY"; exit 1; }
+
+      - name: Create App Store Connect API key
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.appstoreconnect/private_keys
+          printf '%s' "$APPSTORE_PRIVATE_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8
+          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8
+
+      - name: Validate Runner workspace
+        run: |
+          set -euo pipefail
+          xcodebuild -list -workspace ios/Runner.xcworkspace
+
+      - name: Archive iOS app
+        run: |
+          set -euo pipefail
+          xcodebuild archive \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath build/Runner.xcarchive \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8 \
+            -authenticationKeyID "$APPSTORE_KEY_ID" \
+            -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID" \
+            DEVELOPMENT_TEAM=77LPMPBV88 \
+            CODE_SIGN_STYLE=Automatic
+
       - name: Create ExportOptions.plist
         run: |
           set -euo pipefail
@@ -53,73 +91,36 @@ jobs:
             <string>app-store</string>
             <key>signingStyle</key>
             <string>automatic</string>
-            <key>uploadBitcode</key>
-            <false/>
+            <key>teamID</key>
+            <string>77LPMPBV88</string>
+            <key>destination</key>
+            <string>export</string>
           </dict>
           </plist>
           EOF
 
-      - name: Flutter analyze
-        run: flutter analyze
-
-      - name: Check App Store Connect secrets
+      - name: Export IPA
         run: |
           set -euo pipefail
-          [ -n "${APPSTORE_ISSUER_ID:-}" ] || { echo "Missing APPSTORE_ISSUER_ID"; exit 1; }
-          [ -n "${APPSTORE_KEY_ID:-}" ] || { echo "Missing APPSTORE_KEY_ID"; exit 1; }
-          [ -n "${APPSTORE_PRIVATE_KEY:-}" ] || { echo "Missing APPSTORE_PRIVATE_KEY"; exit 1; }
+          xcodebuild -exportArchive \
+            -archivePath build/Runner.xcarchive \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath build/ios/ipa \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8 \
+            -authenticationKeyID "$APPSTORE_KEY_ID" \
+            -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID"
 
-      - name: Install fastlane
-        run: gem install fastlane
-
-      - name: Create App Store Connect API key JSON
+      - name: Confirm IPA exists
         run: |
           set -euo pipefail
-          echo '{
-            "key_id": "'$APPSTORE_KEY_ID'",
-            "issuer_id": "'$APPSTORE_ISSUER_ID'",
-            "key": "'$APPSTORE_PRIVATE_KEY'"
-          }' > AuthKey.json
-
-      - name: Run fastlane match for App Store signing
-        run: |
-          set -euo pipefail
-          cd ios
-          fastlane match appstore \
-            --readonly false \
-            --api_key_path ../AuthKey.json \
-            --type appstore
-          cd ..
-
-      - name: Validate Runner workspace
-        run: |
-          set -euo pipefail
-          xcodebuild -list -workspace ios/Runner.xcworkspace
-
-      - name: Build iOS IPA
-        run: |
-          set -euo pipefail
-          flutter build ipa \
-            --release \
-            --export-options-plist=ExportOptions.plist
-
-      - name: Verify IPA output exists
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          ipa_files=(build/ios/ipa/*.ipa)
-          if [ ${#ipa_files[@]} -eq 0 ]; then
-            echo "No IPA files found under build/ios/ipa"
-            exit 1
-          fi
-          ls -lh build/ios/ipa/*.ipa
+          ls -la build/ios/ipa/*.ipa
 
       - name: Upload to TestFlight
         run: |
           set -euo pipefail
-          xcrun altool \
-            --upload-app \
-            -f build/ios/ipa/*.ipa \
-            -t ios \
-            --apiKey $APPSTORE_KEY_ID \
-            --apiIssuer $APPSTORE_ISSUER_ID
+          xcrun altool --upload-app \
+            --type ios \
+            --file build/ios/ipa/*.ipa \
+            --apiKey "$APPSTORE_KEY_ID" \
+            --apiIssuer "$APPSTORE_ISSUER_ID"
