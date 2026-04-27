@@ -16,24 +16,30 @@ jobs:
         with:
           flutter-version: "3.22.0"
 
-      - name: Flutter clean
+      - name: Flutter Clean
         run: flutter clean
 
-      - name: Flutter pub get
+      - name: Install Dependencies
         run: flutter pub get
 
-      - name: Recreate clean iOS project
+      # 🔥 重建乾淨 iOS（避免 xcodeproj 壞掉）
+      - name: Recreate iOS project
         run: |
           set -euo pipefail
           rm -rf ios
-          flutter create --platforms=ios --org com.wuwu0102 --project-name hvac_unit_converter .
-          sed -i '' 's/PRODUCT_BUNDLE_IDENTIFIER = [^;]*;/PRODUCT_BUNDLE_IDENTIFIER = com.wuwu0102.hvacconverter;/g' ios/Runner.xcodeproj/project.pbxproj
-          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName HVAC Converter" ios/Runner/Info.plist || \
-          /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string HVAC Converter" ios/Runner/Info.plist
+          flutter create . --platforms=ios --org com.wuwu0102 --project-name hvac_unit_converter
+          
+          # 設定 bundle id
+          sed -i '' 's/com.example.hvacUnitConverter/com.wuwu0102.hvacconverter/g' ios/Runner.xcodeproj/project.pbxproj
+          
+          # App 名稱
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName HVAC Converter" ios/Runner/Info.plist || true
 
-      - name: Build IPA no codesign
-        run: flutter build ipa --release --no-codesign
+      # 🔥 產生 IPA（關鍵修正）
+      - name: Build IPA
+        run: flutter build ipa --release
 
+      # 🔥 上傳 TestFlight
       - name: Upload to TestFlight
         uses: apple-actions/upload-testflight-build@v1
         with:
