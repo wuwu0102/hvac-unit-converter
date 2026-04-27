@@ -9,44 +9,59 @@ on:
 jobs:
   release:
     runs-on: macos-latest
-
+    timeout-minutes: 60
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # Step 1: 安裝 Flutter
       - name: Setup Flutter stable
         uses: subosito/flutter-action@v2
         with:
           channel: stable
 
-      - name: Regenerate clean iOS project
-        run: |
-          set -euo pipefail
-          rm -rf ios
-          flutter create . --platforms=ios --org com.wuwu0102 --project-name hvac_unit_converter
-
-      - name: Validate required files
-        run: |
-          set -euo pipefail
-          test -d ios/Runner.xcodeproj
-          test -d ios/Runner.xcworkspace
-          test -f ios/Runner/Info.plist
-          test -f lib/main.dart
-
+      # Step 2: flutter pub get
       - name: Flutter pub get
         run: flutter pub get
 
-      - name: Flutter analyze
-        run: flutter analyze
+      # Step 3: 產生 iOS ipa（一定要用 flutter build ipa --release）
+      - name: Build iOS IPA
+        run: |
+          set -euo pipefail
+          flutter build ipa --release
 
-      - name: Build web release
-        run: flutter build web --release
+      # Step 4: 建立 API key 檔案（APPSTORE_PRIVATE_KEY -> AuthKey.p8）
+      - name: Create App Store Connect API key file
+        env:
+          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          APPSTORE_PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.appstoreconnect/private_keys
+          printf '%s' "$APPSTORE_PRIVATE_KEY" > ~/.appstoreconnect/private_keys/AuthKey.p8
+          cp ~/.appstoreconnect/private_keys/AuthKey.p8 ~/.appstoreconnect/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8
+          chmod 600 ~/.appstoreconnect/private_keys/AuthKey.p8 ~/.appstoreconnect/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8
 
-      - name: Build iOS release without codesign
-        run: flutter build ios --release --no-codesign
+      # Step 5 + Step 6 + Step 7:
+      # 使用 xcrun altool 上傳 TestFlight，失敗就直接 exit 1，只有 upload 成功才算成功
+      - name: Upload IPA to TestFlight (fail if upload fails)
+        env:
+          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+        run: |
+          set -euo pipefail
 
-      - name: Verify Runner workspace can be opened
-        run: xcodebuild -list -workspace ios/Runner.xcworkspace
+          IPA_PATH=$(find build/ios/ipa -maxdepth 1 -name '*.ipa' -print -quit)
+          if [ -z "${IPA_PATH:-}" ]; then
+            echo "No IPA file found in build/ios/ipa"
+            exit 1
+          fi
 
-      - name: Verify Runner scheme build settings
-        run: xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -showBuildSettings
+          echo "Uploading: $IPA_PATH"
+          xcrun altool --upload-app \
+            -f "$IPA_PATH" \
+            --type ios \
+            --apiKey "$APPSTORE_KEY_ID" \
+            --apiIssuer "$APPSTORE_ISSUER_ID"
+
+          echo "Upload to TestFlight completed successfully."
