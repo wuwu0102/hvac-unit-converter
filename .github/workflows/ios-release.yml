@@ -9,10 +9,6 @@ on:
 jobs:
   release:
     runs-on: macos-latest
-    env:
-      APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
-      APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
-      APPSTORE_PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
 
     steps:
       - name: Checkout repository
@@ -23,13 +19,11 @@ jobs:
         with:
           channel: stable
 
-      - name: Ensure iOS project metadata
+      - name: Regenerate clean iOS project
         run: |
           set -euo pipefail
-          sed -i '' 's/PRODUCT_BUNDLE_IDENTIFIER = [^;]*;/PRODUCT_BUNDLE_IDENTIFIER = com.wuwu0102.hvacconverter;/g' ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/DEVELOPMENT_TEAM = [^;]*;/DEVELOPMENT_TEAM = 77LPMPBV88;/g' ios/Runner.xcodeproj/project.pbxproj
-          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName HVAC Converter" ios/Runner/Info.plist || \
-          /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string HVAC Converter" ios/Runner/Info.plist
+          rm -rf ios
+          flutter create . --platforms=ios --org com.wuwu0102 --project-name hvac_unit_converter
 
       - name: Validate required files
         run: |
@@ -43,7 +37,7 @@ jobs:
         run: flutter pub get
 
       - name: Flutter analyze
-        run: flutter analyze --no-fatal-warnings --no-fatal-infos
+        run: flutter analyze
 
       - name: Build web release
         run: flutter build web --release
@@ -55,46 +49,4 @@ jobs:
         run: xcodebuild -list -workspace ios/Runner.xcworkspace
 
       - name: Verify Runner scheme build settings
-        run: xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -showBuildSettings > /tmp/runner-build-settings.txt
-
-      - name: Check App Store Connect secrets via env
-        id: asc_env_check
-        run: |
-          set -euo pipefail
-          if [ -n "${APPSTORE_ISSUER_ID:-}" ] && [ -n "${APPSTORE_KEY_ID:-}" ] && [ -n "${APPSTORE_PRIVATE_KEY:-}" ]; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "App Store Connect secrets incomplete; skip TestFlight upload."
-          fi
-
-      - name: TestFlight upload skipped
-        if: steps.asc_env_check.outputs.available != 'true'
-        run: echo "TestFlight upload skipped due to incomplete App Store Connect secrets."
-
-      - name: Prepare App Store Connect private key
-        id: appstore_key
-        if: steps.asc_env_check.outputs.available == 'true'
-        run: |
-          set -euo pipefail
-          KEY_PATH="$RUNNER_TEMP/AuthKey_${APPSTORE_KEY_ID}.p8"
-          printf '%s' "$APPSTORE_PRIVATE_KEY" > "$KEY_PATH"
-          chmod 600 "$KEY_PATH"
-          {
-            echo "private_key<<EOF"
-            cat "$KEY_PATH"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Build signed IPA for TestFlight (optional)
-        if: steps.asc_env_check.outputs.available == 'true'
-        run: flutter build ipa --release
-
-      - name: Upload IPA to TestFlight (optional)
-        if: steps.asc_env_check.outputs.available == 'true'
-        uses: apple-actions/upload-testflight-build@v3
-        with:
-          app-path: build/ios/ipa/*.ipa
-          issuer-id: ${{ env.APPSTORE_ISSUER_ID }}
-          api-key-id: ${{ env.APPSTORE_KEY_ID }}
-          api-private-key: ${{ steps.appstore_key.outputs.private_key }}
+        run: xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -showBuildSettings
