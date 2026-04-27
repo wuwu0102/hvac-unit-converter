@@ -9,6 +9,10 @@ on:
 jobs:
   release:
     runs-on: macos-latest
+    env:
+      APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+      APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+      APPSTORE_PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
 
     steps:
       - name: Checkout repository
@@ -58,15 +62,42 @@ jobs:
         run: flutter build ios --release --no-codesign
 
 
+      - name: Check App Store Connect secrets
+        id: appstore_secrets
+        run: |
+          if [ -n "$APPSTORE_ISSUER_ID" ] && [ -n "$APPSTORE_KEY_ID" ] && [ -n "$APPSTORE_PRIVATE_KEY" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "App Store Connect secrets are not fully configured. Build will continue without TestFlight upload."
+          fi
+
+      - name: TestFlight upload skipped
+        if: steps.appstore_secrets.outputs.available != 'true'
+        run: echo "TestFlight upload skipped due to incomplete App Store Connect secrets."
+
+      - name: Prepare App Store Connect private key
+        id: appstore_key
+        if: steps.appstore_secrets.outputs.available == 'true'
+        run: |
+          KEY_PATH="$RUNNER_TEMP/AuthKey_${APPSTORE_KEY_ID}.p8"
+          printf '%s' "$APPSTORE_PRIVATE_KEY" > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          {
+            echo "private_key<<EOF"
+            cat "$KEY_PATH"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build signed IPA for TestFlight (optional)
-        if: ${{ secrets.APPSTORE_ISSUER_ID != '' && secrets.APPSTORE_KEY_ID != '' && secrets.APPSTORE_PRIVATE_KEY != '' }}
+        if: steps.appstore_secrets.outputs.available == 'true'
         run: flutter build ipa --release
 
       - name: Build IPA and upload to TestFlight (optional)
-        if: ${{ secrets.APPSTORE_ISSUER_ID != '' && secrets.APPSTORE_KEY_ID != '' && secrets.APPSTORE_PRIVATE_KEY != '' }}
+        if: steps.appstore_secrets.outputs.available == 'true'
         uses: apple-actions/upload-testflight-build@v3
         with:
           app-path: build/ios/ipa/*.ipa
-          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
-          api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
-          api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+          issuer-id: ${{ env.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ env.APPSTORE_KEY_ID }}
+          api-private-key: ${{ steps.appstore_key.outputs.private_key }}
