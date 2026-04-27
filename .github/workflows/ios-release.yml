@@ -1,67 +1,97 @@
 name: iOS Release TestFlight
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
   release:
     runs-on: macos-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
+    env:
+      APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+      APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+      APPSTORE_PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # Step 1: 安裝 Flutter
       - name: Setup Flutter stable
         uses: subosito/flutter-action@v2
         with:
           channel: stable
 
-      # Step 2: flutter pub get
       - name: Flutter pub get
         run: flutter pub get
 
-      # Step 3: 產生 iOS ipa（一定要用 flutter build ipa --release）
+      - name: Flutter analyze
+        run: flutter analyze
+
+      - name: Flutter test
+        run: flutter test
+
+      - name: Validate Runner workspace
+        run: |
+          set -euo pipefail
+          xcodebuild -list -workspace ios/Runner.xcworkspace
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -showBuildSettings
+
+      - name: Create ExportOptions.plist
+        run: |
+          set -euo pipefail
+          cat > ios/ExportOptions.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>signingStyle</key>
+            <string>automatic</string>
+            <key>teamID</key>
+            <string>77LPMPBV88</string>
+            <key>destination</key>
+            <string>export</string>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>compileBitcode</key>
+            <false/>
+          </dict>
+          </plist>
+          PLIST
+
       - name: Build iOS IPA
         run: |
           set -euo pipefail
-          flutter build ipa --release
+          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
 
-      # Step 4: 建立 API key 檔案（APPSTORE_PRIVATE_KEY -> AuthKey.p8）
-      - name: Create App Store Connect API key file
-        env:
-          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
-          APPSTORE_PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+      - name: Verify IPA exists
         run: |
           set -euo pipefail
-          mkdir -p ~/.appstoreconnect/private_keys
-          printf '%s' "$APPSTORE_PRIVATE_KEY" > ~/.appstoreconnect/private_keys/AuthKey.p8
-          cp ~/.appstoreconnect/private_keys/AuthKey.p8 ~/.appstoreconnect/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8
-          chmod 600 ~/.appstoreconnect/private_keys/AuthKey.p8 ~/.appstoreconnect/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8
+          ls -l build/ios/ipa/*.ipa
 
-      # Step 5 + Step 6 + Step 7:
-      # 使用 xcrun altool 上傳 TestFlight，失敗就直接 exit 1，只有 upload 成功才算成功
-      - name: Upload IPA to TestFlight (fail if upload fails)
-        env:
-          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
-          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+      - name: Check App Store Connect secrets
         run: |
           set -euo pipefail
-
-          IPA_PATH=$(find build/ios/ipa -maxdepth 1 -name '*.ipa' -print -quit)
-          if [ -z "${IPA_PATH:-}" ]; then
-            echo "No IPA file found in build/ios/ipa"
+          if [ -z "$APPSTORE_ISSUER_ID" ] || [ -z "$APPSTORE_KEY_ID" ] || [ -z "$APPSTORE_PRIVATE_KEY" ]; then
+            echo "Missing App Store Connect secrets"
             exit 1
           fi
 
-          echo "Uploading: $IPA_PATH"
+      - name: Create App Store Connect API key
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.appstoreconnect/private_keys
+          printf '%s' "$APPSTORE_PRIVATE_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8
+          chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8
+
+      - name: Upload to TestFlight
+        run: |
+          set -euo pipefail
           xcrun altool --upload-app \
-            -f "$IPA_PATH" \
             --type ios \
+            --file build/ios/ipa/*.ipa \
             --apiKey "$APPSTORE_KEY_ID" \
             --apiIssuer "$APPSTORE_ISSUER_ID"
 
-          echo "Upload to TestFlight completed successfully."
+      - name: Confirm completion
+        run: echo "TestFlight upload completed. Check App Store Connect → TestFlight."
