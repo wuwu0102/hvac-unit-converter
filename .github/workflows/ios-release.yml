@@ -29,7 +29,6 @@ jobs:
       - name: Flutter analyze
         run: flutter analyze
 
-
       - name: Check App Store Connect secrets
         run: |
           set -euo pipefail
@@ -47,8 +46,8 @@ jobs:
       - name: Install CocoaPods dependencies
         run: |
           set -euo pipefail
-          flutter precache --ios
           cd ios
+          pod repo update
           pod install
 
       - name: Validate Runner workspace
@@ -56,20 +55,17 @@ jobs:
           set -euo pipefail
           xcodebuild -list -workspace ios/Runner.xcworkspace
 
-      - name: Archive iOS app with automatic signing
+      - name: Archive iOS app
         run: |
           set -euo pipefail
           xcodebuild \
             -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Release \
-            -archivePath build/ios/archive/Runner.xcarchive \
-            -destination 'generic/platform=iOS' \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8 \
-            -authenticationKeyID "$APPSTORE_KEY_ID" \
-            -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID" \
-            archive
+            -archivePath build/Runner.xcarchive \
+            archive \
+            DEVELOPMENT_TEAM="" \
+            CODE_SIGN_STYLE=Automatic
 
       - name: Create ExportOptions.plist
         run: |
@@ -89,37 +85,26 @@ jobs:
           </plist>
           PLIST
 
-      - name: Export signed IPA
+      - name: Export IPA
         run: |
           set -euo pipefail
           xcodebuild -exportArchive \
-            -archivePath build/ios/archive/Runner.xcarchive \
-            -exportPath build/ios/ipa \
-            -exportOptionsPlist ios/ExportOptions.plist \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath ~/.appstoreconnect/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8 \
-            -authenticationKeyID "$APPSTORE_KEY_ID" \
-            -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID"
+            -archivePath build/Runner.xcarchive \
+            -exportPath build \
+            -exportOptionsPlist ios/ExportOptions.plist
 
-      - name: Verify IPA exists
+      - name: Verify IPA
         run: |
           set -euo pipefail
-          IPA_PATH=$(find build/ios/ipa ios/build -maxdepth 2 -name '*.ipa' -print | head -n 1)
-          if [ -z "$IPA_PATH" ]; then
-            echo "No IPA found under build/ios/ipa or ios/build"
-            exit 1
-          fi
-          echo "IPA_PATH=$IPA_PATH" >> "$GITHUB_ENV"
-          ls -l "$IPA_PATH"
+          test -f build/Runner.ipa
+          ls -lh build/Runner.ipa
 
       - name: Upload to TestFlight
         run: |
           set -euo pipefail
-          xcrun altool --upload-app \
+          xcrun altool \
+            --upload-app \
             --type ios \
-            --file "$IPA_PATH" \
-            --apiKey "$APPSTORE_KEY_ID" \
-            --apiIssuer "$APPSTORE_ISSUER_ID"
-
-      - name: Confirm completion
-        run: echo "TestFlight upload completed. Check App Store Connect → TestFlight."
+            --file build/Runner.ipa \
+            --apiKey $APPSTORE_KEY_ID \
+            --apiIssuer $APPSTORE_ISSUER_ID
