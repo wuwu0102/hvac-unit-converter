@@ -23,16 +23,7 @@ jobs:
         with:
           channel: stable
 
-      - name: Flutter pub get
-        run: flutter pub get
-
-      - name: Flutter clean
-        run: flutter clean
-
-      - name: Regenerate iOS platform
-        run: flutter create . --platforms=ios --org com.wuwu0102 --project-name hvac_unit_converter
-
-      - name: Set iOS bundle metadata
+      - name: Ensure iOS project metadata
         run: |
           set -euo pipefail
           sed -i '' 's/PRODUCT_BUNDLE_IDENTIFIER = [^;]*;/PRODUCT_BUNDLE_IDENTIFIER = com.wuwu0102.hvacconverter;/g' ios/Runner.xcodeproj/project.pbxproj
@@ -40,17 +31,16 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName HVAC Converter" ios/Runner/Info.plist || \
           /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string HVAC Converter" ios/Runner/Info.plist
 
-      - name: Verify Runner workspace and project
+      - name: Validate required files
         run: |
           set -euo pipefail
-          test -f ios/Runner.xcworkspace/contents.xcworkspacedata
-          test -f ios/Runner.xcodeproj/project.pbxproj
+          test -d ios/Runner.xcodeproj
+          test -d ios/Runner.xcworkspace
+          test -f ios/Runner/Info.plist
+          test -f lib/main.dart
 
-      - name: List Xcode schemes from workspace
-        run: xcodebuild -list -workspace ios/Runner.xcworkspace
-
-      - name: Verify Runner scheme exists
-        run: xcodebuild -list -workspace ios/Runner.xcworkspace | rg -n "Schemes:|Runner"
+      - name: Flutter pub get
+        run: flutter pub get
 
       - name: Flutter analyze
         run: flutter analyze
@@ -61,25 +51,32 @@ jobs:
       - name: Build iOS release without codesign
         run: flutter build ios --release --no-codesign
 
+      - name: Verify Runner workspace can be opened
+        run: xcodebuild -list -workspace ios/Runner.xcworkspace
 
-      - name: Check App Store Connect secrets
-        id: appstore_secrets
+      - name: Verify Runner scheme build settings
+        run: xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -showBuildSettings > /tmp/runner-build-settings.txt
+
+      - name: Check App Store Connect secrets via env
+        id: asc_env_check
         run: |
-          if [ -n "$APPSTORE_ISSUER_ID" ] && [ -n "$APPSTORE_KEY_ID" ] && [ -n "$APPSTORE_PRIVATE_KEY" ]; then
+          set -euo pipefail
+          if [ -n "${APPSTORE_ISSUER_ID:-}" ] && [ -n "${APPSTORE_KEY_ID:-}" ] && [ -n "${APPSTORE_PRIVATE_KEY:-}" ]; then
             echo "available=true" >> "$GITHUB_OUTPUT"
           else
             echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "App Store Connect secrets are not fully configured. Build will continue without TestFlight upload."
+            echo "App Store Connect secrets incomplete; skip TestFlight upload."
           fi
 
       - name: TestFlight upload skipped
-        if: steps.appstore_secrets.outputs.available != 'true'
+        if: steps.asc_env_check.outputs.available != 'true'
         run: echo "TestFlight upload skipped due to incomplete App Store Connect secrets."
 
       - name: Prepare App Store Connect private key
         id: appstore_key
-        if: steps.appstore_secrets.outputs.available == 'true'
+        if: steps.asc_env_check.outputs.available == 'true'
         run: |
+          set -euo pipefail
           KEY_PATH="$RUNNER_TEMP/AuthKey_${APPSTORE_KEY_ID}.p8"
           printf '%s' "$APPSTORE_PRIVATE_KEY" > "$KEY_PATH"
           chmod 600 "$KEY_PATH"
@@ -90,11 +87,11 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Build signed IPA for TestFlight (optional)
-        if: steps.appstore_secrets.outputs.available == 'true'
+        if: steps.asc_env_check.outputs.available == 'true'
         run: flutter build ipa --release
 
-      - name: Build IPA and upload to TestFlight (optional)
-        if: steps.appstore_secrets.outputs.available == 'true'
+      - name: Upload IPA to TestFlight (optional)
+        if: steps.asc_env_check.outputs.available == 'true'
         uses: apple-actions/upload-testflight-build@v3
         with:
           app-path: build/ios/ipa/*.ipa
