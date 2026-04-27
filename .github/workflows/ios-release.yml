@@ -23,6 +23,21 @@ jobs:
         with:
           channel: stable
 
+      - name: Clean rebuild iOS platform
+        run: |
+          set -euo pipefail
+          rm -rf ios
+          flutter create . --platforms=ios --org com.wuwu0102 --project-name hvac_unit_converter
+
+      - name: Configure iOS release build settings
+        run: |
+          set -euo pipefail
+          {
+            echo ""
+            echo "PRODUCT_BUNDLE_IDENTIFIER = com.wuwu0102.hvacconverter"
+            echo "INFOPLIST_KEY_CFBundleDisplayName = HVAC Converter"
+          } >> ios/Flutter/Release.xcconfig
+
       - name: Flutter pub get
         run: flutter pub get
 
@@ -43,68 +58,39 @@ jobs:
           printf '%s' "$APPSTORE_PRIVATE_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8
           chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8
 
-      - name: Install CocoaPods dependencies
-        run: |
-          set -euo pipefail
-          cd ios
-          pod repo update
-          pod install
-
       - name: Validate Runner workspace
         run: |
           set -euo pipefail
           xcodebuild -list -workspace ios/Runner.xcworkspace
 
-      - name: Archive iOS app
+      - name: Build iOS IPA
         run: |
           set -euo pipefail
-          xcodebuild \
-            -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -archivePath build/Runner.xcarchive \
-            archive \
-            DEVELOPMENT_TEAM="" \
-            CODE_SIGN_STYLE=Automatic
+          flutter build ipa --release
 
-      - name: Create ExportOptions.plist
+      - name: Verify IPA output exists
         run: |
           set -euo pipefail
-          cat > ios/ExportOptions.plist <<'PLIST'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-            <dict>
-              <key>method</key>
-              <string>app-store</string>
-              <key>signingStyle</key>
-              <string>automatic</string>
-              <key>destination</key>
-              <string>export</string>
-            </dict>
-          </plist>
-          PLIST
-
-      - name: Export IPA
-        run: |
-          set -euo pipefail
-          xcodebuild -exportArchive \
-            -archivePath build/Runner.xcarchive \
-            -exportPath build \
-            -exportOptionsPlist ios/ExportOptions.plist
-
-      - name: Verify IPA
-        run: |
-          set -euo pipefail
-          test -f build/Runner.ipa
-          ls -lh build/Runner.ipa
+          shopt -s nullglob
+          ipa_files=(build/ios/ipa/*.ipa)
+          if [ ${#ipa_files[@]} -eq 0 ]; then
+            echo "No IPA files found under build/ios/ipa"
+            exit 1
+          fi
+          ls -lh build/ios/ipa/*.ipa
 
       - name: Upload to TestFlight
         run: |
           set -euo pipefail
+          shopt -s nullglob
+          ipa_files=(build/ios/ipa/*.ipa)
+          if [ ${#ipa_files[@]} -eq 0 ]; then
+            echo "No IPA files found under build/ios/ipa for upload"
+            exit 1
+          fi
           xcrun altool \
             --upload-app \
             --type ios \
-            --file build/Runner.ipa \
-            --apiKey $APPSTORE_KEY_ID \
-            --apiIssuer $APPSTORE_ISSUER_ID
+            --file "${ipa_files[0]}" \
+            --apiKey "$APPSTORE_KEY_ID" \
+            --apiIssuer "$APPSTORE_ISSUER_ID"
