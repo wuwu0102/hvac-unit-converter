@@ -47,3 +47,7 @@ HVAC 單位轉換工具（中文優先、手機版優先）。
 - `.github/workflows/testflight.yml`：在 `main` branch push 或手動觸發時，建立 archive、export IPA 並上傳到 TestFlight。
 
 > 注意：目前 repository 尚未包含 `HVACConverter.xcodeproj` 與 iOS Swift 原始碼；CI workflow 已先依目標參數配置，待 iOS 專案檔加入後即可執行完整流程。
+
+## iOS Build
+
+This project supports iOS build via GitHub Actions.
