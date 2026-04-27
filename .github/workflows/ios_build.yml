@@ -17,21 +17,23 @@ jobs:
         with:
           flutter-version: '3.22.0'
 
-      - run: flutter pub get
+      - name: Show files
+        run: ls -la
 
-      - run: flutter build ios --release --no-codesign
+      - name: Flutter pub get
+        run: flutter pub get
 
-      - name: Archive App
+      - name: Check iOS folder
         run: |
-          xcodebuild -workspace ios/Runner.xcworkspace \
-          -scheme Runner \
-          -configuration Release \
-          -sdk iphoneos \
-          -archivePath build/Runner.xcarchive archive \
-          CODE_SIGNING_ALLOWED=NO
+          test -d ios
+          test -f ios/Runner.xcworkspace/contents.xcworkspacedata
+          test -f ios/Runner.xcodeproj/project.pbxproj
 
-      - name: Upload artifact
+      - name: Build iOS no codesign
+        run: flutter build ios --release --no-codesign
+
+      - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-build
-          path: build/
+          path: build/ios/iphoneos/
