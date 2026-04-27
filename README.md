@@ -1,4 +1,4 @@
-# HVAC Unit Converter V0.13
+# HVAC Unit Converter V0.18
 
 HVAC 單位轉換工具（中文優先、手機版優先）。
 
@@ -9,14 +9,15 @@ HVAC 單位轉換工具（中文優先、手機版優先）。
 - 流速轉換（m/s / ft/s / mm/s / cm/s）
 - 流量對應管徑
 - 壓差估算流量（設備修正）
-- 電力單位換算（W / kW / MW / HP）
-- 三相電力估算
-- 單相電力估算
-- 功率反推電流
+- 電力模組
+  - 電力單位換算（W / kW / MW / HP）
+  - 三相電力估算（kVA / kW）
+  - 單相電力估算（kVA / kW）
+  - 電流估算（A）
 
 ## 電力模組說明
 - 電力模組僅包含 W、kW、MW、HP。
-- RT / BTU/h 屬於冷量，不列入電力模組。
+- RT、BTU/h、冷凍噸屬於冷量，不列入電力模組。
 
 ## 開發（legacy-web）
 直接開啟 `legacy-web/index.html` 即可使用。

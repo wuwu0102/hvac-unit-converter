@@ -59,6 +59,23 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
   final _dpRefLossController = TextEditingController(text: '30');
   String _dpRefLossUnit = 'kPa';
 
+  final _powerController = TextEditingController();
+  String _powerUnit = 'kW';
+
+  final _threePhaseVoltageController = TextEditingController();
+  final _threePhaseCurrentController = TextEditingController();
+  final _threePhasePfController = TextEditingController(text: '0.85');
+
+  final _singlePhaseVoltageController = TextEditingController();
+  final _singlePhaseCurrentController = TextEditingController();
+  final _singlePhasePfController = TextEditingController(text: '1.0');
+
+  final _estimatePowerController = TextEditingController();
+  String _estimatePowerUnit = 'kW';
+  final _estimateVoltageController = TextEditingController();
+  String _estimatePhase = '單相';
+  final _estimatePfController = TextEditingController(text: '0.85');
+
   static const _airflowToBase = <String, double>{
     'CFM': 0.000471947,
     'CMH': 1 / 3600,
@@ -91,6 +108,19 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
     'psi': 6894.76,
   };
 
+  static const _powerToW = <String, double>{
+    'W': 1,
+    'kW': 1000,
+    'MW': 1000000,
+    'HP': 745.7,
+  };
+
+  static const _estimatePowerToKw = <String, double>{
+    'W': 0.001,
+    'kW': 1,
+    'HP': 0.7457,
+  };
+
   static const List<PipeSize> _pipeSizeList = [
     PipeSize(a: '15A', inchDn: '1/2" / DN15', innerDiameterMm: 15.8),
     PipeSize(a: '20A', inchDn: '3/4" / DN20', innerDiameterMm: 20.9),
@@ -121,6 +151,16 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
       _dpMeasuredController,
       _dpRefFlowController,
       _dpRefLossController,
+      _powerController,
+      _threePhaseVoltageController,
+      _threePhaseCurrentController,
+      _threePhasePfController,
+      _singlePhaseVoltageController,
+      _singlePhaseCurrentController,
+      _singlePhasePfController,
+      _estimatePowerController,
+      _estimateVoltageController,
+      _estimatePfController,
     ]) {
       controller.addListener(_handleInputChanged);
     }
@@ -137,6 +177,16 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
       _dpMeasuredController,
       _dpRefFlowController,
       _dpRefLossController,
+      _powerController,
+      _threePhaseVoltageController,
+      _threePhaseCurrentController,
+      _threePhasePfController,
+      _singlePhaseVoltageController,
+      _singlePhaseCurrentController,
+      _singlePhasePfController,
+      _estimatePowerController,
+      _estimateVoltageController,
+      _estimatePfController,
     ]) {
       controller.dispose();
     }
@@ -206,6 +256,7 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
 
   Widget _numericField(
     TextEditingController controller, {
+    String? label,
     String? hint,
   }) {
     return TextField(
@@ -213,10 +264,20 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
       keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^[-0-9.]*$'))],
       decoration: InputDecoration(
+        labelText: label,
         hintText: hint,
         hintStyle: _hintStyle,
       ),
     );
+  }
+
+  double _parsePowerFactor(String value, double defaultValue) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return defaultValue;
+    final parsed = double.tryParse(trimmed);
+    if (parsed == null || !parsed.isFinite || parsed <= 0) return defaultValue;
+    if (parsed > 1) return 1;
+    return parsed;
   }
 
   TextStyle get _hintStyle => TextStyle(
@@ -521,10 +582,161 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
     );
   }
 
+  Widget _powerUnitCard() {
+    final input = _parseAny(_powerController.text);
+    final baseW = input == null ? null : input * _powerToW[_powerUnit]!;
+    final results = <String, String>{
+      for (final unit in _powerToW.keys)
+        if (unit != _powerUnit)
+          unit: baseW == null ? '-' : _formatNumber(baseW / _powerToW[unit]!),
+    };
+
+    return _converterCard(
+      title: '電力單位換算',
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: _numericField(_powerController, label: '功率數值', hint: '請輸入數值')),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 120,
+                child: _mobileSafeSelector(
+                  label: '功率單位',
+                  sheetTitle: '請選擇單位',
+                  value: _powerUnit,
+                  options: _powerToW.keys
+                      .map((u) => SelectorOption(value: u, label: u))
+                      .toList(growable: false),
+                  onChanged: (value) => setState(() => _powerUnit = value),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _resultRows(results),
+        ],
+      ),
+    );
+  }
+
+  Widget _threePhasePowerCard() {
+    final voltage = _parsePositive(_threePhaseVoltageController.text);
+    final current = _parsePositive(_threePhaseCurrentController.text);
+    final pf = _parsePowerFactor(_threePhasePfController.text, 0.85);
+
+    double? kva;
+    double? kw;
+    if (voltage != null && current != null) {
+      kva = math.sqrt(3) * voltage * current / 1000;
+      kw = math.sqrt(3) * voltage * current * pf / 1000;
+    }
+
+    return _converterCard(
+      title: '三相電力估算',
+      child: Column(
+        children: [
+          _numericField(_threePhaseVoltageController, label: '電壓 V', hint: '例如 380'),
+          const SizedBox(height: 8),
+          _numericField(_threePhaseCurrentController, label: '電流 A', hint: '例如 10'),
+          const SizedBox(height: 8),
+          _numericField(_threePhasePfController, label: '功率因數 PF', hint: '預設 0.85'),
+          const SizedBox(height: 10),
+          _resultRows({
+            '視在功率（kVA）': _formatNumber(kva),
+            '有效功率（kW）': _formatNumber(kw),
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _singlePhasePowerCard() {
+    final voltage = _parsePositive(_singlePhaseVoltageController.text);
+    final current = _parsePositive(_singlePhaseCurrentController.text);
+    final pf = _parsePowerFactor(_singlePhasePfController.text, 1.0);
+
+    double? kva;
+    double? kw;
+    if (voltage != null && current != null) {
+      kva = voltage * current / 1000;
+      kw = voltage * current * pf / 1000;
+    }
+
+    return _converterCard(
+      title: '單相電力估算',
+      child: Column(
+        children: [
+          _numericField(_singlePhaseVoltageController, label: '電壓 V', hint: '例如 220'),
+          const SizedBox(height: 8),
+          _numericField(_singlePhaseCurrentController, label: '電流 A', hint: '例如 10'),
+          const SizedBox(height: 8),
+          _numericField(_singlePhasePfController, label: '功率因數 PF', hint: '預設 1.0'),
+          const SizedBox(height: 10),
+          _resultRows({
+            '視在功率（kVA）': _formatNumber(kva),
+            '有效功率（kW）': _formatNumber(kw),
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _currentEstimateCard() {
+    final powerInput = _parsePositive(_estimatePowerController.text);
+    final voltage = _parsePositive(_estimateVoltageController.text);
+    final pf = _parsePowerFactor(_estimatePfController.text, 0.85);
+    final kw = powerInput == null ? null : powerInput * _estimatePowerToKw[_estimatePowerUnit]!;
+
+    double? current;
+    if (kw != null && voltage != null) {
+      if (_estimatePhase == '三相') {
+        current = kw * 1000 / (math.sqrt(3) * voltage * pf);
+      } else {
+        current = kw * 1000 / (voltage * pf);
+      }
+    }
+
+    return _converterCard(
+      title: '電流估算',
+      child: Column(
+        children: [
+          _numericField(_estimatePowerController, label: '功率數值', hint: '請輸入數值'),
+          const SizedBox(height: 8),
+          _mobileSafeSelector(
+            label: '功率單位',
+            sheetTitle: '請選擇功率單位',
+            value: _estimatePowerUnit,
+            options: const ['W', 'kW', 'HP']
+                .map((u) => SelectorOption(value: u, label: u))
+                .toList(growable: false),
+            onChanged: (value) => setState(() => _estimatePowerUnit = value),
+          ),
+          const SizedBox(height: 8),
+          _numericField(_estimateVoltageController, label: '電壓 V', hint: '例如 220 或 380'),
+          const SizedBox(height: 8),
+          _mobileSafeSelector(
+            label: '相數',
+            sheetTitle: '請選擇相數',
+            value: _estimatePhase,
+            options: const ['單相', '三相']
+                .map((u) => SelectorOption(value: u, label: u))
+                .toList(growable: false),
+            onChanged: (value) => setState(() => _estimatePhase = value),
+          ),
+          const SizedBox(height: 8),
+          _numericField(_estimatePfController, label: '功率因數 PF', hint: '預設 0.85'),
+          const SizedBox(height: 10),
+          _resultRows({'預估電流（A）': _formatNumber(current)}),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('HVAC Unit Converter V0.17')),
+      appBar: AppBar(title: const Text('HVAC Unit Converter V0.18')),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
@@ -571,6 +783,20 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
                 ),
                 SizedBox(width: (width - (columns - 1) * 12) / columns, child: _pipeSuggestionCard()),
                 SizedBox(width: (width - (columns - 1) * 12) / columns, child: _dpFlowCard()),
+                SizedBox(
+                  width: width,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 8, bottom: 4),
+                    child: Text(
+                      '電力',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _powerUnitCard()),
+                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _threePhasePowerCard()),
+                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _singlePhasePowerCard()),
+                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _currentEstimateCard()),
               ],
             ),
           );
