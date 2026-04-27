@@ -40,6 +40,9 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
   final _tempController = TextEditingController();
   String _tempUnit = 'C';
 
+  final _coolingCapacityController = TextEditingController();
+  String _coolingCapacityUnit = 'RT';
+
   final _airflowController = TextEditingController();
   String _airflowUnit = 'CFM';
 
@@ -83,6 +86,13 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
     'L/s': 0.001,
     'LPM': 1 / 60000,
     'CMM': 1 / 60,
+  };
+
+  static const _coolingCapacityToRt = <String, double>{
+    'RT': 1,
+    'kW': 1 / 3.517,
+    'kcal/h': 1 / 3024,
+    'BTU/h': 1 / 12000,
   };
 
   static const _pressureToPa = <String, double>{
@@ -144,6 +154,7 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
     super.initState();
     for (final controller in [
       _tempController,
+      _coolingCapacityController,
       _airflowController,
       _pressureController,
       _velocityController,
@@ -170,6 +181,7 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
   void dispose() {
     for (final controller in [
       _tempController,
+      _coolingCapacityController,
       _airflowController,
       _pressureController,
       _velocityController,
@@ -383,6 +395,17 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
           Align(alignment: Alignment.centerLeft, child: Text('結果：$result')),
         ],
       ),
+    );
+  }
+
+  Widget _coolingCapacityCard() {
+    return _multiUnitCard(
+      title: '空調能力轉換',
+      controller: _coolingCapacityController,
+      selectedUnit: _coolingCapacityUnit,
+      units: _coolingCapacityToRt.keys.toList(),
+      toBase: _coolingCapacityToRt,
+      onUnitChanged: (u) => setState(() => _coolingCapacityUnit = u),
     );
   }
 
@@ -736,7 +759,7 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('HVAC Unit Converter V0.18')),
+      appBar: AppBar(title: const Text('HVAC Unit Converter V0.19')),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
@@ -747,6 +770,7 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
               spacing: 12,
               runSpacing: 12,
               children: [
+                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _coolingCapacityCard()),
                 SizedBox(width: (width - (columns - 1) * 12) / columns, child: _temperatureCard()),
                 SizedBox(
                   width: (width - (columns - 1) * 12) / columns,
