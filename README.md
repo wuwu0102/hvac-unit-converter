@@ -51,3 +51,14 @@ HVAC 單位轉換工具（中文優先、手機版優先）。
 ## iOS Build
 
 This project supports iOS build via GitHub Actions.
+
+
+## iOS Release TestFlight workflow（ios-release.yml）
+
+若要使用 `.github/workflows/ios-release.yml` 自動上傳 TestFlight，請在 GitHub Repository Secrets 設定：
+
+- `APPSTORE_ISSUER_ID`
+- `APPSTORE_KEY_ID`
+- `APPSTORE_PRIVATE_KEY`
+
+> 安全提醒：請勿將 `.p8` 私鑰寫入 repository，也不要 commit `AuthKey_FA2C6DC3WT.p8`；私鑰僅能透過 GitHub Secrets 提供。

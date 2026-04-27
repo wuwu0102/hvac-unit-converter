@@ -1,0 +1,43 @@
+name: iOS Release TestFlight
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.22.0"
+
+      - name: Flutter clean
+        run: flutter clean
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Recreate clean iOS project
+        run: |
+          set -euo pipefail
+          rm -rf ios
+          flutter create --platforms=ios --org com.wuwu0102 --project-name hvac_unit_converter .
+          sed -i '' 's/PRODUCT_BUNDLE_IDENTIFIER = [^;]*;/PRODUCT_BUNDLE_IDENTIFIER = com.wuwu0102.hvacconverter;/g' ios/Runner.xcodeproj/project.pbxproj
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName HVAC Converter" ios/Runner/Info.plist || \
+          /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string HVAC Converter" ios/Runner/Info.plist
+
+      - name: Build IPA no codesign
+        run: flutter build ipa --release --no-codesign
+
+      - name: Upload to TestFlight
+        uses: apple-actions/upload-testflight-build@v1
+        with:
+          app-path: build/ios/ipa/*.ipa
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
