@@ -49,6 +49,12 @@ jobs:
             --build-name=1.0.0 \
             --build-number=${{ github.run_number }}
 
+      - name: Verify Flutter Runner workspace
+        run: |
+          set -euo pipefail
+          test -f ios/Runner.xcworkspace/contents.xcworkspacedata
+          ! rg -n "HVACConverter\\.xcodeproj" .github/workflows/ios-release.yml
+
       - name: Archive app without signing
         run: |
           xcodebuild archive \
