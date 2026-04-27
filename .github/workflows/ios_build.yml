@@ -21,18 +21,27 @@ jobs:
       - name: Show Flutter version
         run: flutter --version
 
-      - name: Clean
+      - name: Clean Flutter
         run: flutter clean
 
       - name: Pub get
         run: flutter pub get
 
-      - name: Verify iOS files
+      - name: Recreate clean iOS project
         run: |
-          test -d ios
+          set -euo pipefail
+          rm -rf ios
+          flutter create --platforms=ios --org com.wuwu0102 --project-name hvac_unit_converter .
+          sed -i '' 's/PRODUCT_BUNDLE_IDENTIFIER = [^;]*;/PRODUCT_BUNDLE_IDENTIFIER = com.wuwu0102.hvacconverter;/g' ios/Runner.xcodeproj/project.pbxproj
+          /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName HVAC Converter" ios/Runner/Info.plist || \
+          /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string HVAC Converter" ios/Runner/Info.plist
+
+      - name: Verify clean iOS project
+        run: |
           test -f ios/Runner.xcworkspace/contents.xcworkspacedata
           test -f ios/Runner.xcodeproj/project.pbxproj
           test -f ios/Runner/Info.plist
+          xcodebuild -list -workspace ios/Runner.xcworkspace
           grep -R "com.wuwu0102.hvacconverter" ios/Runner.xcodeproj/project.pbxproj
 
       - name: Build iOS no codesign
