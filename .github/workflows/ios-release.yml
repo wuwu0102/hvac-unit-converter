@@ -26,17 +26,19 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
+      - name: Remove existing iOS project
+        run: rm -rf ios
+
+      - name: Regenerate clean iOS project
+        run: flutter create --platforms=ios --org com.wuwu0102 .
+
+      - name: Set iOS bundle identifier
+        run: |
+          sed -i '' 's/PRODUCT_BUNDLE_IDENTIFIER = [^;]*;/PRODUCT_BUNDLE_IDENTIFIER = com.wuwu0102.hvacUnitConverter;/g' ios/Runner.xcodeproj/project.pbxproj
+
+      - name: Set Apple Developer Team ID
+        run: |
+          sed -i '' 's/DEVELOPMENT_TEAM = [A-Z0-9]*/DEVELOPMENT_TEAM = 77LPMPBV88/g' ios/Runner.xcodeproj/project.pbxproj
+
       - name: Build iOS (release, no codesign)
         run: flutter build ios --release --no-codesign
-
-      - name: Archive iOS app
-        run: |
-          set -euo pipefail
-          xcodebuild archive \
-            -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -destination "generic/platform=iOS" \
-            -archivePath build/Runner.xcarchive \
-            CODE_SIGN_STYLE=Automatic \
-            DEVELOPMENT_TEAM=77LPMPBV88
