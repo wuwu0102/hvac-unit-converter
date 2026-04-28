@@ -7,7 +7,7 @@ on:
 
 jobs:
   ios-build:
-    runs-on: macos-13   # 🔥 避開 arm64 問題
+    runs-on: macos-15   # 🔥 避開 arm64 問題
 
     steps:
       - name: Checkout
