@@ -1,12 +1,8 @@
-name: iOS Build & Archive
+name: iOS Release TestFlight
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -15,30 +11,86 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Flutter stable
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           channel: stable
 
-      - name: Flutter pub get
-        run: flutter pub get
+      - run: flutter pub get
 
-      - name: Remove existing iOS project
-        run: rm -rf ios
+      # 每次重新生成 iOS（避免壞掉）
+      - run: rm -rf ios
+      - run: flutter create --platforms=ios --org com.wuwu0102 .
 
-      - name: Regenerate clean iOS project
-        run: flutter create --platforms=ios --org com.wuwu0102 .
-
-      - name: Set iOS bundle identifier
+      # 設定 bundle id
+      - name: Set bundle id
         run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.wuwu0102.hvacUnitConverter" ios/Runner/Info.plist
           sed -i '' 's/PRODUCT_BUNDLE_IDENTIFIER = [^;]*;/PRODUCT_BUNDLE_IDENTIFIER = com.wuwu0102.hvacUnitConverter;/g' ios/Runner.xcodeproj/project.pbxproj
 
-      - name: Set Apple Developer Team ID
+      # 設定 Team ID（自動簽名）
+      - name: Set Team ID
         run: |
           sed -i '' 's/DEVELOPMENT_TEAM = [A-Z0-9]*/DEVELOPMENT_TEAM = 77LPMPBV88/g' ios/Runner.xcodeproj/project.pbxproj
 
-      - name: Build iOS (release, no codesign)
+      # 先產生 Flutter iOS artifacts + pods
+      - name: Prepare iOS build files
         run: flutter build ios --release --no-codesign
+
+      # 建立 archive
+      - name: Archive app
+        run: |
+          xcodebuild -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -archivePath build/Runner.xcarchive \
+            DEVELOPMENT_TEAM=77LPMPBV88 \
+            PRODUCT_BUNDLE_IDENTIFIER=com.wuwu0102.hvacUnitConverter \
+            CODE_SIGN_STYLE=Automatic \
+            archive
+
+      # export IPA
+      - name: Export IPA
+        run: |
+          cat <<EOF > exportOptions.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>signingStyle</key>
+            <string>automatic</string>
+            <key>teamID</key>
+            <string>77LPMPBV88</string>
+          </dict>
+          </plist>
+          EOF
+
+          xcodebuild -exportArchive \
+            -archivePath build/Runner.xcarchive \
+            -exportPath build/ipa \
+            -exportOptionsPlist exportOptions.plist
+
+      # 上傳 TestFlight
+      - name: Upload to TestFlight
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          KEY_PATH=~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8
+
+          if echo "$APP_STORE_CONNECT_API_KEY" | grep -q "BEGIN PRIVATE KEY"; then
+            echo "$APP_STORE_CONNECT_API_KEY" > "$KEY_PATH"
+          else
+            echo "$APP_STORE_CONNECT_API_KEY" | base64 --decode > "$KEY_PATH"
+          fi
+
+          xcrun altool --upload-app \
+            -f build/ipa/*.ipa \
+            --type ios \
+            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_API_ISSUER_ID"
