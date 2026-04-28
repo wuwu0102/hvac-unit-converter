@@ -24,41 +24,14 @@ HVAC 單位轉換工具（中文優先、手機版優先）。
 ## 開發（legacy-web）
 直接開啟 `legacy-web/index.html` 即可使用。
 
-## TestFlight / App Store Connect（GitHub Actions）
+## iOS CI（GitHub Actions）
 
-上傳 TestFlight 前，請先在 GitHub Repository Secrets 設定以下變數：
+目前使用簡化 iOS pipeline：
 
-- `KEYCHAIN_PASSWORD`
-- `BUILD_CERTIFICATE_BASE64`
-- `P12_PASSWORD`
-- `BUILD_PROVISION_PROFILE_BASE64`
-- `ASC_KEY_ID`
-- `ASC_ISSUER_ID`
-- `ASC_PRIVATE_KEY`
+1. `flutter pub get`
+2. `flutter build ios --release --no-codesign`
+3. `xcodebuild archive`（`CODE_SIGN_STYLE=Automatic`、`DEVELOPMENT_TEAM=77LPMPBV88`）
 
-### Secrets 說明
-- `BUILD_CERTIFICATE_BASE64`：Apple Distribution certificate 匯出的 `.p12` 檔案內容經 base64 後的字串。
-- `BUILD_PROVISION_PROFILE_BASE64`：App Store provisioning profile 內容經 base64 後的字串。
-- `ASC_PRIVATE_KEY`：App Store Connect API key 的 `.p8` 內容。
-- `ASC_KEY_ID` 與 `ASC_ISSUER_ID`：來自 App Store Connect 的 API Keys 頁面。
+Workflow 檔案：`.github/workflows/ios-release.yml`。
 
-### CI 工作流程
-- `.github/workflows/ios_build.yml`：使用 `HVACConverteriOS` scheme 進行 iPhone Simulator no-signing build（`CODE_SIGNING_ALLOWED=NO`）。
-- `.github/workflows/testflight.yml`：在 `main` branch push 或手動觸發時，建立 archive、export IPA 並上傳到 TestFlight。
-
-> 注意：目前 repository 尚未包含 `HVACConverter.xcodeproj` 與 iOS Swift 原始碼；CI workflow 已先依目標參數配置，待 iOS 專案檔加入後即可執行完整流程。
-
-## iOS Build
-
-This project supports iOS build via GitHub Actions.
-
-
-## iOS Release TestFlight workflow（ios-release.yml）
-
-若要使用 `.github/workflows/ios-release.yml` 自動上傳 TestFlight，請在 GitHub Repository Secrets 設定：
-
-- `APPSTORE_ISSUER_ID`
-- `APPSTORE_KEY_ID`
-- `APPSTORE_PRIVATE_KEY`
-
-> 安全提醒：請勿將 `.p8` 私鑰寫入 repository，也不要 commit `AuthKey_FA2C6DC3WT.p8`；私鑰僅能透過 GitHub Secrets 提供。
+> 這個流程只負責驗證 iOS build 與 archive，不包含 TestFlight 上傳步驟。
