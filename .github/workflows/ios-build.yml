@@ -7,7 +7,7 @@ on:
 
 jobs:
   ios-build:
-    runs-on: macos-latest
+    runs-on: macos-13   # 🔥 避開 arm64 問題
 
     steps:
       - name: Checkout
@@ -16,16 +16,17 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 'stable'
+          flutter-version: '3.22.2'   # 🔥 固定版本（關鍵）
+
+      - name: Flutter doctor
+        run: flutter doctor
 
       - name: Install dependencies
         run: flutter pub get
 
       - name: Clean project
-        run: |
-          flutter clean
+        run: flutter clean
 
       - name: Build iOS (NO CODESIGN)
-        run: |
-          flutter build ios --release --no-codesign
+        run: flutter build ios --release --no-codesign
 
