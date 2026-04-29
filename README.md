@@ -24,14 +24,7 @@ HVAC 單位轉換工具（中文優先、手機版優先）。
 ## 開發（legacy-web）
 直接開啟 `legacy-web/index.html` 即可使用。
 
-## iOS CI（GitHub Actions）
-
-目前使用簡化 iOS pipeline：
-
-1. `flutter pub get`
-2. `flutter build ios --release --no-codesign`
-3. `xcodebuild archive`（`CODE_SIGN_STYLE=Automatic`、`DEVELOPMENT_TEAM=77LPMPBV88`）
-
-Workflow 檔案：`.github/workflows/ios-release.yml`。
-
-> 這個流程只負責驗證 iOS build 與 archive，不包含 TestFlight 上傳步驟。
+## CI / 發佈狀態
+- Web 版本目前可正常使用，透過 GitHub Pages 部署。
+- Android APK 可由 GitHub Actions 的 `Build Android APK` workflow artifact 下載。
+- iOS TestFlight / App Store release 目前暫停，待 Mac / Xcode / code signing 環境準備完成後再重新啟用。

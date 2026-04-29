@@ -30,7 +30,10 @@ jobs:
         run: flutter pub get
 
       - name: Build web
-        run: flutter build web --release --base-href /hvac-unit-converter/
+        run: flutter build web --release --base-href=/hvac-unit-converter/ --pwa-strategy=none
+
+      - name: Remove service worker cache file
+        run: rm -f build/web/flutter_service_worker.js
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
