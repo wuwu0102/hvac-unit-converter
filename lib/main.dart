@@ -40,6 +40,9 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
   final _tempController = TextEditingController();
   String _tempUnit = 'C';
 
+  final _areaLengthController = TextEditingController();
+  final _areaWidthController = TextEditingController();
+
   final _coolingCapacityController = TextEditingController();
   String _coolingCapacityUnit = 'RT';
 
@@ -154,6 +157,8 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
     super.initState();
     for (final controller in [
       _tempController,
+      _areaLengthController,
+      _areaWidthController,
       _coolingCapacityController,
       _airflowController,
       _pressureController,
@@ -181,6 +186,8 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
   void dispose() {
     for (final controller in [
       _tempController,
+      _areaLengthController,
+      _areaWidthController,
       _coolingCapacityController,
       _airflowController,
       _pressureController,
@@ -224,6 +231,11 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
   String _formatNumber(double? value) {
     if (value == null || !value.isFinite) return '-';
     return value.toStringAsFixed(4);
+  }
+
+  String _formatNumber2(double? value) {
+    if (value == null || !value.isFinite) return '-';
+    return value.toStringAsFixed(2);
   }
 
   double _pipeAreaM2(PipeSize pipe) {
@@ -393,6 +405,35 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
           ),
           const SizedBox(height: 10),
           Align(alignment: Alignment.centerLeft, child: Text('結果：$result')),
+        ],
+      ),
+    );
+  }
+
+  Widget _areaConverterCard() {
+    final lengthM = _parseAny(_areaLengthController.text);
+    final widthM = _parseAny(_areaWidthController.text);
+    final areaM2 = (lengthM == null || widthM == null) ? null : lengthM * widthM;
+    final areaFt2 = areaM2 == null ? null : areaM2 * 10.7639;
+    final areaPing = areaM2 == null ? null : areaM2 / 3.305785;
+
+    return _converterCard(
+      title: '面積換算',
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: _numericField(_areaLengthController, label: '長度（m）', hint: '請輸入長度')),
+              const SizedBox(width: 8),
+              Expanded(child: _numericField(_areaWidthController, label: '寬度（m）', hint: '請輸入寬度')),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _resultRows({
+            '平方公尺（m²）': _formatNumber2(areaM2),
+            '平方英尺（ft²）': _formatNumber2(areaFt2),
+            '坪': _formatNumber2(areaPing),
+          }),
         ],
       ),
     );
@@ -770,6 +811,7 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
               spacing: 12,
               runSpacing: 12,
               children: [
+                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _areaConverterCard()),
                 SizedBox(width: (width - (columns - 1) * 12) / columns, child: _coolingCapacityCard()),
                 SizedBox(width: (width - (columns - 1) * 12) / columns, child: _temperatureCard()),
                 SizedBox(
