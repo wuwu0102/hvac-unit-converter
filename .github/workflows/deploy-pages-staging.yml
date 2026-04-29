@@ -1,8 +1,8 @@
-name: Deploy Flutter Web to GitHub Pages
+name: Deploy Flutter Web Staging
 
 on:
   push:
-    branches: [main]
+    branches: [develop]
   workflow_dispatch:
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-staging
   cancel-in-progress: true
 
 jobs:
@@ -29,16 +29,21 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build web
-        run: flutter build web --release --base-href=/hvac-unit-converter/ --pwa-strategy=none
+      - name: Build web (staging)
+        run: flutter build web --release --base-href /hvac-unit-converter/dev/
 
-      - name: Remove service worker cache file
-        run: rm -f build/web/flutter_service_worker.js
+      - name: Prepare staging artifact under /dev
+        run: |
+          mkdir -p build/staging/dev
+          cp -R build/web/. build/staging/dev/
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: build/web
+          path: build/staging
 
   deploy:
     environment:
