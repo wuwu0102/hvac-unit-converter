@@ -20,19 +20,39 @@ class HvacConverterApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF4F7FC),
         useMaterial3: true,
       ),
-      home: const ConverterHomePage(),
+      initialRoute: '/',
+      routes: {
+        '/': (_) => const HomeMenuPage(),
+      },
+      onGenerateRoute: (settings) {
+        final name = settings.name ?? '/';
+        if (name.startsWith('/feature/')) {
+          final key = name.replaceFirst('/feature/', '');
+          FeaturePageType? feature;
+          for (final item in FeaturePageType.values) {
+            if (item.key == key) {
+              feature = item;
+              break;
+            }
+          }
+          if (feature != null) return MaterialPageRoute(builder: (_) => ConverterFeaturePage(feature: feature!));
+        }
+        return null;
+      },
     );
   }
 }
 
-class ConverterHomePage extends StatefulWidget {
-  const ConverterHomePage({super.key});
+class ConverterFeaturePage extends StatefulWidget {
+  const ConverterFeaturePage({super.key, required this.feature});
+
+  final FeaturePageType feature;
 
   @override
-  State<ConverterHomePage> createState() => _ConverterHomePageState();
+  State<ConverterFeaturePage> createState() => _ConverterFeaturePageState();
 }
 
-class _ConverterHomePageState extends State<ConverterHomePage> {
+class _ConverterFeaturePageState extends State<ConverterFeaturePage> {
   static const double _hintFontScale = 1.25;
   static const double _hintLineHeight = 1.45;
   static const EdgeInsets _hintVerticalPadding = EdgeInsets.symmetric(vertical: 7);
@@ -284,6 +304,7 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
     String? hint,
   }) {
     return TextField(
+      style: const TextStyle(fontSize: 30),
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^[-0-9.]*$'))],
@@ -305,13 +326,13 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
   }
 
   TextStyle get _hintStyle => TextStyle(
-        fontSize: 12 * _hintFontScale,
+        fontSize: 22,
         height: _hintLineHeight,
         color: Colors.grey[700],
       );
 
   TextStyle get _sectionDescriptionStyle => TextStyle(
-        fontSize: 13 * _hintFontScale,
+        fontSize: 24,
         height: _hintLineHeight,
         color: Colors.grey[700],
       );
@@ -327,7 +348,7 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
                 children: [
                   Expanded(child: Text(entry.key)),
                   const SizedBox(width: 8),
-                  Text(entry.value, style: const TextStyle(fontFamily: 'monospace')),
+                  Text(entry.value, style: const TextStyle(fontFamily: 'monospace', fontSize: 28)),
                 ],
               ),
             ),
@@ -361,7 +382,7 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(title, style: const TextStyle(fontSize: 34, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             child,
           ],
@@ -800,76 +821,69 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('HVAC Unit Converter V0.19')),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final columns = width >= 1180 ? 3 : width >= 760 ? 2 : 1;
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(12),
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _areaConverterCard()),
-                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _coolingCapacityCard()),
-                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _temperatureCard()),
-                SizedBox(
-                  width: (width - (columns - 1) * 12) / columns,
-                  child: _multiUnitCard(
-                    title: '流量轉換',
-                    controller: _airflowController,
-                    selectedUnit: _airflowUnit,
-                    units: _airflowToBase.keys.toList(),
-                    toBase: _airflowToBase,
-                    onUnitChanged: (u) => setState(() => _airflowUnit = u),
-                  ),
-                ),
-                SizedBox(
-                  width: (width - (columns - 1) * 12) / columns,
-                  child: _multiUnitCard(
-                    title: '壓力轉換',
-                    controller: _pressureController,
-                    selectedUnit: _pressureUnit,
-                    units: _pressureToPa.keys.toList(),
-                    toBase: _pressureToPa,
-                    onUnitChanged: (u) => setState(() => _pressureUnit = u),
-                  ),
-                ),
-                SizedBox(
-                  width: (width - (columns - 1) * 12) / columns,
-                  child: _multiUnitCard(
-                    title: '流速轉換',
-                    controller: _velocityController,
-                    selectedUnit: _velocityUnit,
-                    units: _velocityToMs.keys.toList(),
-                    toBase: _velocityToMs,
-                    onUnitChanged: (u) => setState(() => _velocityUnit = u),
-                  ),
-                ),
-                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _pipeSuggestionCard()),
-                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _dpFlowCard()),
-                SizedBox(
-                  width: width,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 8, bottom: 4),
-                    child: Text(
-                      '電力',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _powerUnitCard()),
-                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _threePhasePowerCard()),
-                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _singlePhasePowerCard()),
-                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _currentEstimateCard()),
-              ],
-            ),
-          );
-        },
+      appBar: AppBar(title: Text(widget.feature.title), leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: ()=>Navigator.of(context).pop(),), actions:[TextButton(onPressed: ()=>Navigator.of(context).popUntil((r)=>r.isFirst), child: const Text('返回功能列表'))]),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 680),
+            child: _featureBody(),
+          ),
+        ),
       ),
     );
   }
+
+  Widget _featureBody() {
+    switch (widget.feature) {
+      case FeaturePageType.area: return _areaConverterCard();
+      case FeaturePageType.cooling: return _coolingCapacityCard();
+      case FeaturePageType.temperature: return _temperatureCard();
+      case FeaturePageType.airflow: return _multiUnitCard(title: '流量轉換', controller: _airflowController, selectedUnit: _airflowUnit, units: _airflowToBase.keys.toList(), toBase: _airflowToBase, onUnitChanged: (u)=>setState(()=>_airflowUnit=u));
+      case FeaturePageType.pressure: return _multiUnitCard(title: '壓力轉換', controller: _pressureController, selectedUnit: _pressureUnit, units: _pressureToPa.keys.toList(), toBase: _pressureToPa, onUnitChanged: (u)=>setState(()=>_pressureUnit=u));
+      case FeaturePageType.velocity: return _multiUnitCard(title: '流速轉換', controller: _velocityController, selectedUnit: _velocityUnit, units: _velocityToMs.keys.toList(), toBase: _velocityToMs, onUnitChanged: (u)=>setState(()=>_velocityUnit=u));
+      case FeaturePageType.pipe: return _pipeSuggestionCard();
+      case FeaturePageType.dpFlow: return _dpFlowCard();
+      case FeaturePageType.powerUnit: return _powerUnitCard();
+      case FeaturePageType.threePhase: return _threePhasePowerCard();
+      case FeaturePageType.singlePhase: return _singlePhasePowerCard();
+      case FeaturePageType.current: return _currentEstimateCard();
+    }
+  }
+}
+
+class HomeMenuPage extends StatelessWidget {
+  const HomeMenuPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('HVAC Unit Converter')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          for (final f in FeaturePageType.values)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: SizedBox(
+                height: 84,
+                child: FilledButton(
+                  onPressed: () => Navigator.pushNamed(context, '/feature/${f.key}'),
+                  child: Align(alignment: Alignment.centerLeft, child: Text(f.title, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w600))),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+enum FeaturePageType {
+  area('area', '面積換算'), cooling('cooling', '空調能力轉換'), temperature('temperature', '溫度轉換'), airflow('airflow', '流量轉換'), pressure('pressure', '壓力轉換'), velocity('velocity', '流速轉換'), pipe('pipe', '流量對應管徑'), dpFlow('dp-flow', '壓差估算流量'), powerUnit('power', '電力單位換算'), threePhase('three-phase', '三相電力估算'), singlePhase('single-phase', '單相電力估算'), current('current', '電流估算');
+  const FeaturePageType(this.key, this.title);
+  final String key;
+  final String title;
 }
 
 class PipeSize {
@@ -922,13 +936,14 @@ class MobileSafeSelector<T> extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         border: const OutlineInputBorder(),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
       child: Row(
         children: [
           Expanded(
             child: Text(
               selected.label,
+              style: const TextStyle(fontSize: 28),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
