@@ -24,22 +24,17 @@ jobs:
       - name: Install Capacitor packages
         run: npm install @capacitor/core @capacitor/cli @capacitor/ios @capacitor/android --save
 
+      - name: Install TypeScript
+        run: npm install --save-dev typescript
+
       - name: Build web assets
         run: npm run build
 
-      - name: Ensure iOS and Android projects exist
-        run: |
-          if [ ! -d ios ]; then
-            npx cap add ios
-          else
-            echo "iOS project already exists, skipping cap add ios"
-          fi
+      - name: Add iOS project
+        run: npx cap add ios
 
-          if [ ! -d android ]; then
-            npx cap add android
-          else
-            echo "Android project already exists, skipping cap add android"
-          fi
+      - name: Add Android project
+        run: npx cap add android
 
       - name: Sync Capacitor projects
         run: npx cap sync
