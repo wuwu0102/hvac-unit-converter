@@ -3,6 +3,9 @@ name: Promote from test to production
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   promote:
     runs-on: ubuntu-latest
@@ -10,26 +13,35 @@ jobs:
     steps:
       - name: Checkout production repo
         uses: actions/checkout@v4
+        with:
+          path: production-repo
+          persist-credentials: true
 
       - name: Checkout test repo
         uses: actions/checkout@v4
         with:
           repository: wuwu0102/hvac-unit-converter-test
+          ref: main
           path: test-repo
 
       - name: Copy files from test to production
         run: |
-          cp test-repo/index.html .
-          cp test-repo/app.js .
-          cp test-repo/.nojekyll .
+          cp test-repo/index.html production-repo/index.html
+          cp test-repo/app.js production-repo/app.js
+          cp test-repo/.nojekyll production-repo/.nojekyll
 
-      - name: Commit changes
+      - name: Commit and push changes
+        working-directory: production-repo
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
           git add index.html app.js .nojekyll
 
-          git diff --cached --quiet || git commit -m "Promote paged UI from test"
+          if git diff --cached --quiet; then
+            echo "no changes"
+            exit 0
+          fi
 
-      - name: Push changes
-        run: git push
+          git commit -m "Promote paged UI from test"
+          git push
