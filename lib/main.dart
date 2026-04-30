@@ -33,6 +33,7 @@ class ConverterHomePage extends StatefulWidget {
 }
 
 class _ConverterHomePageState extends State<ConverterHomePage> {
+  ConverterPage? _selectedPage;
   static const double _hintFontScale = 1.25;
   static const double _hintLineHeight = 1.45;
   static const EdgeInsets _hintVerticalPadding = EdgeInsets.symmetric(vertical: 7);
@@ -42,6 +43,7 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
 
   final _areaLengthController = TextEditingController();
   final _areaWidthController = TextEditingController();
+  String _areaUnit = 'm';
 
   final _coolingCapacityController = TextEditingController();
   String _coolingCapacityUnit = 'RT';
@@ -411,8 +413,11 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
   }
 
   Widget _areaConverterCard() {
-    final lengthM = _parseAny(_areaLengthController.text);
-    final widthM = _parseAny(_areaWidthController.text);
+    final lengthInput = _parseAny(_areaLengthController.text);
+    final widthInput = _parseAny(_areaWidthController.text);
+    final factor = _areaUnit == 'm' ? 1.0 : 0.3048;
+    final lengthM = lengthInput == null ? null : lengthInput * factor;
+    final widthM = widthInput == null ? null : widthInput * factor;
     final areaM2 = (lengthM == null || widthM == null) ? null : lengthM * widthM;
     final areaFt2 = areaM2 == null ? null : areaM2 * 10.7639;
     final areaPing = areaM2 == null ? null : areaM2 / 3.305785;
@@ -423,12 +428,32 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
         children: [
           Row(
             children: [
-              Expanded(child: _numericField(_areaLengthController, label: '長度（m）', hint: '請輸入長度')),
+              Expanded(child: _numericField(_areaLengthController, label: '長度', hint: '請輸入長度')),
               const SizedBox(width: 8),
-              Expanded(child: _numericField(_areaWidthController, label: '寬度（m）', hint: '請輸入寬度')),
+              Expanded(child: _numericField(_areaWidthController, label: '寬度', hint: '請輸入寬度')),
             ],
           ),
+          const SizedBox(height: 8),
+          _mobileSafeSelector(
+            label: '長寬單位',
+            sheetTitle: '請選擇長寬單位',
+            value: _areaUnit,
+            options: const [
+              SelectorOption(value: 'm', label: 'm'),
+              SelectorOption(value: 'ft', label: 'ft'),
+            ],
+            onChanged: (value) => setState(() => _areaUnit = value),
+          ),
           const SizedBox(height: 10),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text('1 坪 = 3.305785 平方公尺'),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+            ],
+          ),
           _resultRows({
             '平方公尺（m²）': _formatNumber2(areaM2),
             '平方英尺（ft²）': _formatNumber2(areaFt2),
@@ -799,77 +824,112 @@ class _ConverterHomePageState extends State<ConverterHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_selectedPage == null) {
+      return _buildMenuPage(context);
+    }
+    return _buildFeaturePage(context, _selectedPage!);
+  }
+
+  Widget _buildMenuPage(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('HVAC Unit Converter V0.19')),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          final columns = width >= 1180 ? 3 : width >= 760 ? 2 : 1;
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(12),
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _areaConverterCard()),
-                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _coolingCapacityCard()),
-                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _temperatureCard()),
-                SizedBox(
-                  width: (width - (columns - 1) * 12) / columns,
-                  child: _multiUnitCard(
-                    title: '流量轉換',
-                    controller: _airflowController,
-                    selectedUnit: _airflowUnit,
-                    units: _airflowToBase.keys.toList(),
-                    toBase: _airflowToBase,
-                    onUnitChanged: (u) => setState(() => _airflowUnit = u),
-                  ),
-                ),
-                SizedBox(
-                  width: (width - (columns - 1) * 12) / columns,
-                  child: _multiUnitCard(
-                    title: '壓力轉換',
-                    controller: _pressureController,
-                    selectedUnit: _pressureUnit,
-                    units: _pressureToPa.keys.toList(),
-                    toBase: _pressureToPa,
-                    onUnitChanged: (u) => setState(() => _pressureUnit = u),
-                  ),
-                ),
-                SizedBox(
-                  width: (width - (columns - 1) * 12) / columns,
-                  child: _multiUnitCard(
-                    title: '流速轉換',
-                    controller: _velocityController,
-                    selectedUnit: _velocityUnit,
-                    units: _velocityToMs.keys.toList(),
-                    toBase: _velocityToMs,
-                    onUnitChanged: (u) => setState(() => _velocityUnit = u),
-                  ),
-                ),
-                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _pipeSuggestionCard()),
-                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _dpFlowCard()),
-                SizedBox(
-                  width: width,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 8, bottom: 4),
-                    child: Text(
-                      '電力',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(12),
+          children: ConverterPage.values
+              .map(
+                (page) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: FilledButton(
+                    onPressed: () => setState(() => _selectedPage = page),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                      textStyle: const TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
                     ),
+                    child: Align(alignment: Alignment.centerLeft, child: Text(page.label)),
                   ),
                 ),
-                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _powerUnitCard()),
-                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _threePhasePowerCard()),
-                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _singlePhasePowerCard()),
-                SizedBox(width: (width - (columns - 1) * 12) / columns, child: _currentEstimateCard()),
-              ],
-            ),
-          );
-        },
+              )
+              .toList(),
+        ),
       ),
     );
   }
+
+  Widget _buildFeaturePage(BuildContext context, ConverterPage page) {
+    final content = switch (page) {
+      ConverterPage.area => _areaConverterCard(),
+      ConverterPage.cooling => _coolingCapacityCard(),
+      ConverterPage.temperature => _temperatureCard(),
+      ConverterPage.flow => _multiUnitCard(
+          title: '流量轉換',
+          controller: _airflowController,
+          selectedUnit: _airflowUnit,
+          units: _airflowToBase.keys.toList(),
+          toBase: _airflowToBase,
+          onUnitChanged: (u) => setState(() => _airflowUnit = u),
+        ),
+      ConverterPage.pressure => _multiUnitCard(
+          title: '壓力轉換',
+          controller: _pressureController,
+          selectedUnit: _pressureUnit,
+          units: _pressureToPa.keys.toList(),
+          toBase: _pressureToPa,
+          onUnitChanged: (u) => setState(() => _pressureUnit = u),
+        ),
+      ConverterPage.velocity => _multiUnitCard(
+          title: '流速轉換',
+          controller: _velocityController,
+          selectedUnit: _velocityUnit,
+          units: _velocityToMs.keys.toList(),
+          toBase: _velocityToMs,
+          onUnitChanged: (u) => setState(() => _velocityUnit = u),
+        ),
+      ConverterPage.pipe => _pipeSuggestionCard(),
+      ConverterPage.dp => _dpFlowCard(),
+      ConverterPage.power => Column(
+          children: [
+            _powerUnitCard(),
+            const SizedBox(height: 12),
+            _threePhasePowerCard(),
+            const SizedBox(height: 12),
+            _singlePhasePowerCard(),
+            const SizedBox(height: 12),
+            _currentEstimateCard(),
+          ],
+        ),
+    };
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(page.label),
+        leading: IconButton(
+          icon: const Icon(Icons.home),
+          onPressed: () => setState(() => _selectedPage = null),
+        ),
+      ),
+      body: SafeArea(
+        child: MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.8)),
+          child: SingleChildScrollView(padding: const EdgeInsets.all(12), child: content),
+        ),
+      ),
+    );
+  }
+}
+
+enum ConverterPage {
+  area('面積換算'),
+  cooling('空調能力轉換'),
+  temperature('溫度轉換'),
+  flow('流量轉換'),
+  pressure('壓力轉換'),
+  velocity('流速轉換'),
+  pipe('流量對應管徑'),
+  dp('壓差估算流量'),
+  power('電力模組');
+
+  final String label;
+  const ConverterPage(this.label);
 }
 
 class PipeSize {
