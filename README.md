@@ -71,3 +71,14 @@ HVAC 單位轉換工具（中文優先、手機版優先）。
 6. `npx cap sync`
 7. `npx cap open ios`
 8. `npx cap open android`
+
+
+## GitHub 自動產生 iOS / Android 專案包
+1. 到 GitHub 專案的 **Actions** 分頁。
+2. 選擇 **Build Mobile Project Artifacts** workflow。
+3. 點擊 **Run workflow** 手動觸發。
+4. workflow 完成後下載 artifact：`hvac-ios-project.zip`（以及 `hvac-android-project.zip`）。
+5. 在 Mac 解壓縮後開啟 `ios/App/App.xcworkspace`。
+6. 在 Xcode 設定 Team / Signing。
+7. 使用 Xcode Archive，並上傳到 App Store Connect。
+
