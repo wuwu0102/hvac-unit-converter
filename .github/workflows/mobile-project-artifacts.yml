@@ -39,12 +39,27 @@ jobs:
       - name: Add Android project
         run: npx cap add android || true
 
-      - name: Fix iOS deployment target
+      - name: Fix iOS deployment target to 14.0
         run: |
-          sed -i '' 's/platform :ios, .*/platform :ios, '\''13.0'\''/' ios/App/Podfile || true
+          if [ -f ios/App/Podfile ]; then
+            if grep -q "platform :ios" ios/App/Podfile; then
+              sed -i '' "s/platform :ios, .*/platform :ios, '14.0'/" ios/App/Podfile || true
+            else
+              sed -i '' "1s/^/platform :ios, '14.0'\n/" ios/App/Podfile || true
+            fi
+          fi
 
-      - name: Sync Capacitor projects
-        run: npx cap sync
+          if [ -f ios/App/App.xcodeproj/project.pbxproj ]; then
+            sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*/IPHONEOS_DEPLOYMENT_TARGET = 14.0/g' ios/App/App.xcodeproj/project.pbxproj || true
+          fi
+
+      - name: Copy web assets to Capacitor projects
+        run: |
+          npx cap copy ios || true
+          npx cap copy android || true
+
+      - name: Sync Android project only
+        run: npx cap sync android || true
 
       - name: Create iOS project zip
         run: |
