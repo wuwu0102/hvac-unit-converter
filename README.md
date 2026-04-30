@@ -74,6 +74,7 @@ HVAC 單位轉換工具（中文優先、手機版優先）。
 
 
 ## GitHub 自動產生 iOS / Android 專案包
+- GitHub Actions 產生 mobile artifacts 時會在 runner 暫時重建 ios/android 專案，不會把產物提交回 repo。
 1. 到 GitHub 專案的 **Actions** 分頁。
 2. 選擇 **Build Mobile Project Artifacts** workflow。
 3. 點擊 **Run workflow** 手動觸發。

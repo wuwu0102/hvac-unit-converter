@@ -30,6 +30,9 @@ jobs:
       - name: Build web assets
         run: npm run build
 
+      - name: Clean native folders in runner workspace
+        run: rm -rf ios android
+
       - name: Add iOS project
         run: npx cap add ios
 
