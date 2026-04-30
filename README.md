@@ -45,3 +45,29 @@ HVAC 單位轉換工具（中文優先、手機版優先）。
 - `iOS Build Only Manual` workflow 僅支援手動觸發（`workflow_dispatch`）。
 - iOS 上架仍需 Mac / Xcode / code signing，GitHub Actions 目前只做手動測試用途。
 
+
+## Mobile App 打包方式
+1. 安裝相依套件：`npm install`
+2. 建立 Web 輸出：`npm run build`
+3. 同步 Capacitor 專案：`npx cap sync`
+4. 開啟 iOS 專案：`npx cap open ios`
+5. 開啟 Android 專案：`npx cap open android`
+
+### 平台需求
+- iOS 打包與上架需要 Mac / Xcode。
+- Android 打包與上架需要 Android Studio。
+
+## Mobile App 打包準備
+- 目前 **web app 仍是主要可運行版本**，既有網頁功能與換算邏輯維持不變。
+- iOS / Android 版本規劃使用 Capacitor 將現有 web app 包裝成原生 app。
+- 由於目前線上執行環境遇到 npm registry `403`，原生專案產生請在本機或可正常使用 npm 的環境執行。
+
+### 本機建議步驟（可連 npm）
+1. `npm install`
+2. `npm install @capacitor/core @capacitor/cli @capacitor/ios @capacitor/android --save`
+3. `npm run build`
+4. `npx cap add ios`
+5. `npx cap add android`
+6. `npx cap sync`
+7. `npx cap open ios`
+8. `npx cap open android`

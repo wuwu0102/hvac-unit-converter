@@ -1,0 +1,12 @@
+{
+  "name": "hvac-unit-converter",
+  "version": "0.19.0",
+  "private": true,
+  "scripts": {
+    "build": "mkdir -p dist && cp index.html app.js dist/",
+    "mobile:init": "npx cap init \"HVAC Unit Converter\" com.wuwu0102.hvacunitconverter --web-dir=dist",
+    "mobile:sync": "npx cap sync",
+    "mobile:ios": "npx cap open ios",
+    "mobile:android": "npx cap open android"
+  }
+}
