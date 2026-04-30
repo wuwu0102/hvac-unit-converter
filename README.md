@@ -75,11 +75,13 @@ HVAC 單位轉換工具（中文優先、手機版優先）。
 
 ## GitHub 自動產生 iOS / Android 專案包
 - GitHub Actions 產生 mobile artifacts 時會在 runner 暫時重建 ios/android 專案，不會把產物提交回 repo。
+- GitHub Actions 產出的 iOS zip 是 Xcode 專案包；首次在 Mac 開啟時，可能需要在本機執行 `pod install`，或讓 Xcode 自行整理依賴。
+- GitHub Actions 的流程目標僅為產生可下載專案包，不負責 iOS 簽章與 CocoaPods 完整安裝。
 1. 到 GitHub 專案的 **Actions** 分頁。
 2. 選擇 **Build Mobile Project Artifacts** workflow。
 3. 點擊 **Run workflow** 手動觸發。
 4. workflow 完成後下載 artifact：`hvac-ios-project.zip`（以及 `hvac-android-project.zip`）。
-5. 在 Mac 解壓縮後開啟 `ios/App/App.xcworkspace`。
+5. 在 Mac 解壓縮後開啟 `ios/App/App.xcodeproj`（或先 `pod install` 後開啟 `ios/App/App.xcworkspace`）。
 6. 在 Xcode 設定 Team / Signing。
 7. 使用 Xcode Archive，並上傳到 App Store Connect。
 
