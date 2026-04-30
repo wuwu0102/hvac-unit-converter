@@ -34,10 +34,14 @@ jobs:
         run: rm -rf ios android
 
       - name: Add iOS project
-        run: npx cap add ios
+        run: npx cap add ios || true
 
       - name: Add Android project
-        run: npx cap add android
+        run: npx cap add android || true
+
+      - name: Fix iOS deployment target
+        run: |
+          sed -i '' 's/platform :ios, .*/platform :ios, '\''13.0'\''/' ios/App/Podfile || true
 
       - name: Sync Capacitor projects
         run: npx cap sync
