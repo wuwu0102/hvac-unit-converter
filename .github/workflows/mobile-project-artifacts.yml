@@ -1,0 +1,67 @@
+name: Build Mobile Project Artifacts
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-mobile-project-artifacts:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Capacitor packages
+        run: npm install @capacitor/core @capacitor/cli @capacitor/ios @capacitor/android --save
+
+      - name: Build web assets
+        run: npm run build
+
+      - name: Ensure iOS and Android projects exist
+        run: |
+          if [ ! -d ios ]; then
+            npx cap add ios
+          else
+            echo "iOS project already exists, skipping cap add ios"
+          fi
+
+          if [ ! -d android ]; then
+            npx cap add android
+          else
+            echo "Android project already exists, skipping cap add android"
+          fi
+
+      - name: Sync Capacitor projects
+        run: npx cap sync
+
+      - name: Create iOS project zip
+        run: |
+          rm -f hvac-ios-project.zip
+          ditto -c -k --sequesterRsrc --keepParent ios hvac-ios-project.zip
+
+      - name: Create Android project zip
+        run: |
+          rm -f hvac-android-project.zip
+          ditto -c -k --sequesterRsrc --keepParent android hvac-android-project.zip
+
+      - name: Upload iOS project artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hvac-ios-project
+          path: hvac-ios-project.zip
+
+      - name: Upload Android project artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hvac-android-project
+          path: hvac-android-project.zip
