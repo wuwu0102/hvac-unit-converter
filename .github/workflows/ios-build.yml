@@ -4,6 +4,9 @@ on:
 jobs:
   build:
     runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: .
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
