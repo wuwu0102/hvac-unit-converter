@@ -415,10 +415,30 @@ function initializeNavigation() {
   });
 }
 
+
+
+function initializeFeedbackActions() {
+  const googleButton = document.querySelector('[data-feedback-google]');
+  const emailButton = document.querySelector('[data-feedback-email]');
+
+  if (googleButton) {
+    googleButton.addEventListener('click', () => {
+      window.open('https://docs.google.com/forms/d/e/1FAIpQLSc95R0vPbKHLP9kP4MkCxsTVxk0aHTw4iCqlEHNb-Aa6RSWNQ/viewform', '_blank', 'noopener');
+    });
+  }
+
+  if (emailButton) {
+    emailButton.addEventListener('click', () => {
+      window.location.href = 'mailto:chttwm@gmail.com?subject=HVAC%20Unit%20Converter%20%E6%84%8F%E8%A6%8B%E5%9B%9E%E9%A5%8B';
+    });
+  }
+}
+
 function startApp() {
   const cards = Array.from(document.querySelectorAll('.card'));
   cards.forEach((card) => initializeCard(card));
   initializeNavigation();
+  initializeFeedbackActions();
 }
 
 if (document.readyState === 'loading') {
