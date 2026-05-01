@@ -10,7 +10,7 @@
         font-family: "Noto Sans TC", "Microsoft JhengHei", Arial, sans-serif;
       }
       * { box-sizing: border-box; }
-      body { margin: 0; padding: 16px; background: #f4f7fc; color: #0f172a; }
+      body { margin: 0; padding: 16px; padding-top: max(16px, env(safe-area-inset-top)); padding-right: max(16px, env(safe-area-inset-right)); padding-bottom: max(16px, env(safe-area-inset-bottom)); padding-left: max(16px, env(safe-area-inset-left)); background: #f4f7fc; color: #0f172a; }
       .container { max-width: 820px; margin: 0 auto; }
       h1 { margin: 0 0 16px; font-size: 32px; line-height: 1.2; }
       h2 { margin: 0 0 14px; font-size: 28px; }
@@ -68,6 +68,7 @@
           <button class="menu-button" data-nav-target="current-page">kW估算電流</button>
           <button class="menu-button" data-nav-target="three-phase-page">三相電力估算</button>
           <button class="menu-button" data-nav-target="single-phase-page">單相電力估算</button>
+          <button class="menu-button" data-nav-target="feedback-page">意見回饋</button>
         </div>
       </section>
 
@@ -81,9 +82,11 @@
       <section class="page" id="three-phase-page"><button class="back-btn" data-nav-home>返回首頁</button><article class="card" data-type="three-phase-power"><h2>三相電力估算</h2><section class="form-section"><div class="field"><label class="form-label">電壓 V</label><input type="number" step="any" data-role="voltage" placeholder="例如 380" /></div><div class="field"><label class="form-label">電流 A</label><input type="number" step="any" data-role="current" placeholder="例如 30" /></div><div class="field"><label class="form-label">功率因數 PF</label><input type="number" step="any" data-role="pf" value="0.85" placeholder="預設 0.85" /></div></section><section class="result-section"><ul class="dp-result" data-role="three-phase-result"><li><span class="dp-key">視在功率（kVA）</span><span class="result-colon">:</span><span class="dp-value result-highlight">-</span></li><li><span class="dp-key">有效功率（kW）</span><span class="result-colon">:</span><span class="dp-value result-highlight">-</span></li></ul></section></article></section>
       <section class="page" id="single-phase-page"><button class="back-btn" data-nav-home>返回首頁</button><article class="card" data-type="single-phase-power"><h2>單相電力估算</h2><section class="form-section"><div class="field"><label class="form-label">電壓 V</label><input type="number" step="any" data-role="voltage" placeholder="例如 220" /></div><div class="field"><label class="form-label">電流 A</label><input type="number" step="any" data-role="current" placeholder="例如 15" /></div><div class="field"><label class="form-label">功率因數 PF</label><input type="number" step="any" data-role="pf" value="1" placeholder="預設 1.0" /></div></section><section class="result-section"><ul class="dp-result" data-role="single-phase-result"><li><span class="dp-key">視在功率（kVA）</span><span class="result-colon">:</span><span class="dp-value result-highlight">-</span></li><li><span class="dp-key">有效功率（kW）</span><span class="result-colon">:</span><span class="dp-value result-highlight">-</span></li></ul></section></article></section>
       <section class="page" id="current-page"><button class="back-btn" data-nav-home>返回首頁</button><article class="card" data-type="current-estimate"><h2>kW估算電流</h2><section class="form-section"><div class="field"><label class="form-label">功率數值</label><input type="number" step="any" data-role="power" placeholder="例如 10" /></div><div class="field"><label class="form-label">功率單位</label><select data-role="power-unit"><option value="W">W</option><option value="kW">kW</option><option value="HP">HP</option></select></div><div class="field"><label class="form-label">電壓 V</label><input type="number" step="any" data-role="voltage" placeholder="例如 380" /></div><div class="field"><label class="form-label">相數</label><select data-role="phase"><option value="three">三相</option><option value="single">單相</option></select></div><div class="field"><label class="form-label">功率因數 PF</label><input type="number" step="any" data-role="pf" value="0.85" placeholder="預設 0.85" /></div></section><section class="result-section"><ul class="dp-result" data-role="current-result"><li><span class="dp-key">預估電流（A）</span><span class="result-colon">:</span><span class="dp-value result-highlight">-</span></li></ul></section></article></section>
+
+      <section class="page" id="feedback-page"><button class="back-btn" data-nav-home>返回首頁</button><article class="card"><h2>意見回饋</h2><p class="hint">若使用中遇到問題或有功能建議，歡迎透過下列方式回饋。</p><div class="menu-grid"><button class="menu-button" data-feedback-google>Google Form 回饋</button><button class="menu-button" data-feedback-email>Email 備援回饋</button></div><p class="sub-note">提醒：若要回報畫面問題，請附上截圖與操作步驟，會更快協助排查。</p></article></section>
     </main>
 
-    <script src="./app.js?v=20260429-2238" defer></script>
+    <script src="./app.js?v=20260501-0001" defer></script>
     <!-- stable production pages deploy -->
 </body>
 </html>
