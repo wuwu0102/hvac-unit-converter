@@ -10,7 +10,7 @@
         font-family: "Noto Sans TC", "Microsoft JhengHei", Arial, sans-serif;
       }
       * { box-sizing: border-box; }
-      body { margin: 0; padding: 16px; padding-top: max(16px, env(safe-area-inset-top)); padding-right: max(16px, env(safe-area-inset-right)); padding-bottom: max(16px, env(safe-area-inset-bottom)); padding-left: max(16px, env(safe-area-inset-left)); background: #f4f7fc; color: #0f172a; }
+      body { margin: 0; padding: 16px; padding-top: max(72px, env(safe-area-inset-top)); padding-bottom: max(16px, env(safe-area-inset-bottom)); padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); background: #f4f7fc; color: #0f172a; }
       .container { max-width: 820px; margin: 0 auto; }
       h1 { margin: 0 0 16px; font-size: 32px; line-height: 1.2; }
       h2 { margin: 0 0 14px; font-size: 28px; }
@@ -51,6 +51,63 @@
         .result-colon { display: none; }
         .result-value, .dp-value { text-align: left; }
       }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          color-scheme: dark;
+        }
+
+        body {
+          background: #0f172a;
+          color: #e5e7eb;
+        }
+
+        .card {
+          background: #1e293b;
+          border-color: #334155;
+          color: #e5e7eb;
+        }
+
+        h1, h2, h3,
+        .hint,
+        .sub-note,
+        .form-label,
+        .section-title,
+        label {
+          color: #e5e7eb;
+        }
+
+        input,
+        select,
+        textarea {
+          background: #0f172a;
+          color: #e5e7eb;
+          border-color: #475569;
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+          color: #94a3b8;
+        }
+
+        .menu-button {
+          background: #2563eb;
+          color: #ffffff;
+        }
+
+        .back-btn {
+          background: #334155;
+          color: #ffffff;
+        }
+
+        .dp-key,
+        .result-section,
+        .result-colon,
+        .dp-result li {
+          color: #e5e7eb;
+        }
+      }
+
     </style>
   </head>
   <body>

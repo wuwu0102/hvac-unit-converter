@@ -1,0 +1,115 @@
+name: Safe Sync Test to Production
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  safe-sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout production repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch test repository main branch
+        run: |
+          git remote add test-repo https://github.com/wuwu0102/hvac-unit-converter-test.git
+          git fetch test-repo main
+
+      - name: Sync safe files from test
+        run: |
+          mkdir -p .safe-sync-temp
+          git show test-repo/main:app.js > .safe-sync-temp/app.js || true
+          if [ -f .safe-sync-temp/app.js ]; then
+            cp .safe-sync-temp/app.js app.js
+          fi
+
+      - name: Preserve production feedback initializer and URL
+        run: |
+          if ! rg -q 'initializeFeedbackActions\(\)' app.js; then
+            echo "initializeFeedbackActions missing in app.js"
+            exit 1
+          fi
+          if ! rg -q 'forms.google.com' app.js; then
+            echo "Google Form URL missing in app.js"
+            exit 1
+          fi
+          if ! rg -q 'chttwm@gmail.com' app.js; then
+            echo "Feedback email missing in app.js"
+            exit 1
+          fi
+
+      - name: Optionally import new pages and menu buttons from test index
+        run: |
+          git show test-repo/main:index.html > .safe-sync-temp/index.test.html || true
+          if [ -f .safe-sync-temp/index.test.html ]; then
+            python <<'PY'
+from pathlib import Path
+import re
+
+prod = Path('index.html').read_text(encoding='utf-8')
+test_path = Path('.safe-sync-temp/index.test.html')
+if not test_path.exists():
+    raise SystemExit(0)
+test = test_path.read_text(encoding='utf-8')
+
+prod_pages = set(re.findall(r'<section class="page" id="([^"]+)"', prod))
+new_sections = []
+for m in re.finditer(r'(<section class="page" id="([^"]+)"[\s\S]*?</section>)', test):
+    full, sid = m.group(1), m.group(2)
+    if sid not in prod_pages:
+      new_sections.append(full)
+
+if new_sections:
+    prod = prod.replace('</main>', '\n\n      ' + '\n      '.join(new_sections) + '\n    </main>')
+
+prod_buttons = set(re.findall(r'<button class="menu-button" data-nav-target="([^"]+)"', prod))
+for sid in re.findall(r'<button class="menu-button" data-nav-target="([^"]+)"', test):
+    if sid not in prod_buttons:
+        button = f'<button class="menu-button" data-nav-target="{sid}">'
+        match = re.search(r'(<button class="menu-button" data-nav-target="' + re.escape(sid) + r'"[\s\S]*?</button>)', test)
+        if match and button not in prod:
+            prod = prod.replace('<button class="menu-button" data-nav-target="feedback-page">意見回饋</button>', match.group(1) + '\n          <button class="menu-button" data-nav-target="feedback-page">意見回饋</button>')
+
+Path('index.html').write_text(prod, encoding='utf-8')
+PY
+          fi
+
+      - name: Validate protected production UI and feedback markers
+        run: |
+          rg -q 'safe-area-inset-top' index.html
+          rg -q 'max\(72px, env\(safe-area-inset-top\)\)' index.html
+          rg -q 'prefers-color-scheme' index.html
+          rg -q 'feedback-page' index.html
+          rg -q 'forms.google.com' app.js
+          rg -q 'chttwm@gmail.com' app.js
+          rg -q 'initializeFeedbackActions' app.js
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build project
+        run: npm run build
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore: safe sync test features into production"
+          branch: codex/safe-sync-test-to-production
+          title: Safe sync test features into production
+          body: |
+            - 已從 test 同步
+            - 已保留 production safe area
+            - 已保留 dark mode
+            - 已保留 feedback
