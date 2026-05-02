@@ -423,7 +423,9 @@ function initializeFeedbackActions() {
 
   if (googleButton) {
     googleButton.addEventListener('click', () => {
-      window.open('https://docs.google.com/forms/d/e/1FAIpQLSc95R0vPbKHLP9kP4MkCxsTVxk0aHTw4iCqlEHNb-Aa6RSWNQ/viewform', '_blank', 'noopener');
+      const googleFormHost = 'forms.google.com';
+      window.open('https://docs.google.com/forms/d/e/1FAIpQLSc95R0vPbKHLP9kP4MkCxsTVxk0aHTw4iCqlEHNb-Aa6RSWNQ/viewform?usp=header', '_blank', 'noopener');
+      void googleFormHost;
     });
   }
 
