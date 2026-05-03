@@ -122,7 +122,12 @@ const pipeSizeList = [
   { a: '80A', inchDn: '3" / DN80', innerDiameterMm: 77.9 },
   { a: '100A', inchDn: '4" / DN100', innerDiameterMm: 102.3 },
   { a: '125A', inchDn: '5" / DN125', innerDiameterMm: 128.2 },
-  { a: '150A', inchDn: '6" / DN150', innerDiameterMm: 154.1 }
+  { a: '150A', inchDn: '6" / DN150', innerDiameterMm: 154.1 },
+  { a: '200A', inchDn: '8" / DN200', innerDiameterMm: 202.7 },
+  { a: '250A', inchDn: '10" / DN250', innerDiameterMm: 254.5 },
+  { a: '300A', inchDn: '12" / DN300', innerDiameterMm: 303.2 },
+  { a: '350A', inchDn: '14" / DN350', innerDiameterMm: 333.4 },
+  { a: '400A', inchDn: '16" / DN400', innerDiameterMm: 381.0 }
 ];
 
 function formatNumber(value) {
@@ -178,15 +183,15 @@ function initializePipeSuggestCard(card) {
     if (!Number.isFinite(flowLpm) || flowLpm <= 0) return reset();
 
     const flowM3s = flowLpm / 60000;
-    const candidate = pipeSizeList.find((pipe) => {
-      const velocity = flowM3s / getPipeAreaM2(pipe);
-      const limit = Number.parseInt(pipe.a, 10) <= 40 ? 1.2 : 3.0;
-      return velocity <= limit;
-    }) || pipeSizeList[pipeSizeList.length - 1];
-
-    const velocity = flowM3s / getPipeAreaM2(candidate);
-    updateResultRow(result, 'dp-key', 'dp-value', '建議管徑', `${candidate.a} / ${candidate.inchDn}`);
-    updateResultRow(result, 'dp-key', 'dp-value', '參考流速（m/s）', formatNumber(velocity));
+    const evaluations = pipeSizeList.map((pipe) => ({ pipe, velocity: flowM3s / getPipeAreaM2(pipe) }));
+    const candidate = evaluations.find((e) => e.velocity <= 3.0);
+    if (!candidate) {
+      updateResultRow(result, 'dp-key', 'dp-value', '建議管徑', '超出表內管徑，請分管或加大管徑');
+      updateResultRow(result, 'dp-key', 'dp-value', '參考流速（m/s）', '-');
+      return;
+    }
+    updateResultRow(result, 'dp-key', 'dp-value', '建議管徑', `${candidate.pipe.a} / ${candidate.pipe.inchDn}`);
+    updateResultRow(result, 'dp-key', 'dp-value', '參考流速（m/s）', formatNumber(candidate.velocity));
   }
 
   flowInput.addEventListener('input', update);
@@ -416,29 +421,36 @@ function initializeNavigation() {
 }
 
 
+function initializeFeedbackForm() {
+  const googleFormButton = document.querySelector('#feedback-google-form');
+  const emailButton = document.querySelector('#feedback-email');
 
-function initializeFeedbackActions() {
-  const googleButton = document.querySelector('[data-feedback-google]');
-  const emailButton = document.querySelector('[data-feedback-email]');
+  if (!googleFormButton || !emailButton) return false;
 
-  if (googleButton) {
-    googleButton.addEventListener('click', () => {
-      window.open('https://docs.google.com/forms/d/e/1FAIpQLSc95R0vPbKHLP9kP4MkCxsTVxk0aHTw4iCqlEHNb-Aa6RSWNQ/viewform', '_blank', 'noopener');
-    });
-  }
+  googleFormButton.addEventListener('click', () => {
+    const url = 'https://docs.google.com/forms/d/e/1FAIpQLSc95R0vPbKHLP9kP4MkCxsTVxk0aHTw4iCqlEHNb-Aa6RSWNQ/viewform';
+    window.open(url, '_blank');
+  });
 
-  if (emailButton) {
-    emailButton.addEventListener('click', () => {
-      window.location.href = 'mailto:chttwm@gmail.com?subject=HVAC%20Unit%20Converter%20%E6%84%8F%E8%A6%8B%E5%9B%9E%E9%A5%8B';
-    });
-  }
+  emailButton.addEventListener('click', () => {
+    const body = encodeURIComponent([
+      '留言：',
+      '聯絡方式：',
+      '使用裝置：',
+      navigator.userAgent
+    ].join('\n'));
+    const subject = encodeURIComponent('HVAC Unit Converter 意見回饋');
+    window.location.href = `mailto:chttwm@gmail.com?subject=${subject}&body=${body}`;
+  });
+
+  return true;
 }
 
 function startApp() {
   const cards = Array.from(document.querySelectorAll('.card'));
   cards.forEach((card) => initializeCard(card));
   initializeNavigation();
-  initializeFeedbackActions();
+  initializeFeedbackForm();
 }
 
 if (document.readyState === 'loading') {
