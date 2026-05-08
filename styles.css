@@ -1,2 +1,22 @@
-:root{font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;color-scheme:light}*{box-sizing:border-box}body{margin:0;background:#eef3f9;color:#0f172a}.app-shell{max-width:980px;margin:0 auto;padding:16px}.app-header{background:#fff;border-radius:16px;padding:18px;margin-bottom:14px}.app-header h1{margin:0;font-size:32px}.app-header p{margin:6px 0 0;color:#475569;font-size:18px}.page{display:none}.page.active{display:block}.category-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.category-card,.back-btn{border:0;border-radius:14px;background:#fff;padding:16px;font-size:22px;font-weight:700;text-align:left;box-shadow:0 2px 8px rgba(15,23,42,.08)}.back-btn{margin-bottom:10px;font-size:18px;background:#1e293b;color:#fff}.card{background:#fff;border-radius:16px;padding:16px}.card h2{margin:0 0 14px}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.form-grid label{display:flex;flex-direction:column;font-size:16px;gap:6px}.inline{display:grid;grid-template-columns:1fr 140px;gap:10px}input,select{width:100%;min-height:46px;padding:10px;border:1px solid #cbd5e1;border-radius:10px;font-size:18px}.result-block{margin-top:10px;padding:12px;background:#f8fafc;border-radius:10px;line-height:1.6;white-space:pre-line;overflow-wrap:anywhere}
-@media (max-width: 680px){.app-shell{padding:12px}.app-header h1{font-size:28px}.category-grid,.form-grid,.inline{grid-template-columns:1fr}.category-card{font-size:20px}}
+:root{font-family:"Noto Sans TC","Microsoft JhengHei",sans-serif;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;background:#eef3f9;color:#0f172a}
+.shell{max-width:980px;margin:0 auto;padding:16px}
+.app-header{background:#fff;border-radius:16px;padding:18px;margin-bottom:14px}
+.app-header h1{margin:0;font-size:32px}
+.version{margin:6px 0 0;color:#475569;font-size:18px}
+.page{display:none}.page.active{display:block}
+.card-grid,.category-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.tool-card,.category-card,.back-btn{border:0;border-radius:14px;background:#fff;padding:16px;font-size:22px;font-weight:700;text-align:left;box-shadow:0 2px 8px rgba(15,23,42,.08)}
+.back-btn{margin-bottom:10px;font-size:18px;background:#1e293b;color:#fff}
+.card{background:#fff;border-radius:16px;padding:16px}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.form-grid label{display:flex;flex-direction:column;font-size:16px;gap:6px}
+.inline{display:grid;grid-template-columns:1fr 140px;gap:10px}
+input,select{width:100%;min-height:46px;padding:10px;border:1px solid #cbd5e1;border-radius:10px;font-size:18px}
+.result-block,.result-box{margin-top:10px;padding:12px;background:#f8fafc;border-radius:10px;line-height:1.6;white-space:pre-line;overflow-wrap:anywhere}
+.grid.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.entry{display:flex;flex-direction:column;gap:4px;align-items:flex-start;border:1px solid #cbd5e1;background:#fff;border-radius:10px;padding:12px}
+.muted{color:#64748b;font-size:14px}
+.mobile-result-list{display:grid;gap:8px}
+@media (max-width:640px){.shell{padding:12px}.app-header h1{font-size:28px}.card-grid,.category-grid,.form-grid,.inline,.grid.two{grid-template-columns:1fr}.category-card,.tool-card{font-size:20px}}
