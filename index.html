@@ -1,35 +1,27 @@
 <!doctype html>
 <html lang="zh-Hant">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HVAC 空調機房工程工具 V1.1</title>
-  <link rel="stylesheet" href="./styles.css?v=20260508-v11" />
-</head>
-<body>
-  <main class="shell app-shell">
-    <header class="app-header">
-      <h1>HVAC 空調機房工程工具</h1>
-      <p class="version">Web V1.1</p>
-    </header>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HVAC 空調機房工程工具 V1.1</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="entry">
+        <h1>HVAC 空調機房工程工具</h1>
+        <p class="version">Web V1.1</p>
+      </header>
 
-    <section class="page active" id="home-page">
-      <div class="category-grid card-grid">
-        <button class="category-card tool-card" data-nav-target="dc-page">機房 / 資料中心整合估算</button>
-        <button class="category-card tool-card" data-nav-target="temp-page">溫度換算</button>
-        <button class="category-card tool-card" data-nav-target="airflow-page">流量換算</button>
-        <button class="category-card tool-card" data-nav-target="pressure-page">壓力換算</button>
-        <button class="category-card tool-card" data-nav-target="feedback-page">意見回饋</button>
-      </div>
-    </section>
+      <section id="home" class="tool-card active">
+        <h2>工具選單</h2>
+        <div class="card-grid" data-group="A"></div>
+      </section>
 
-    <section class="page" id="dc-page"><button class="back-btn" data-nav-home>返回首頁</button><article class="card"><h2>機房 / 資料中心整合估算</h2><div class="form-grid"><label>排數<input id="rack-rows" type="number" value="5"></label><label>每排機櫃數<input id="racks-per-row" type="number" value="10"></label><label>每櫃功率 (kW)<input id="kw-per-rack" type="number" value="2" step="0.1"></label><label>機房長 (m)<input id="room-length" type="number" value="20"></label><label>機房寬 (m)<input id="room-width" type="number" value="12"></label><label>機房高 (m)<input id="room-height" type="number" value="4"></label><label>人員數<input id="people-count" type="number" value="4"></label><label>UPS 發熱係數<input id="ups-factor" type="number" value="0.08" step="0.01"></label><label>配電係數<input id="power-dist-factor" type="number" value="0.05" step="0.01"></label><label>照明密度 (W/m²)<input id="lighting-density" type="number" value="12"></label><label>電壓 (V)<input id="dc-voltage" type="number" value="380"></label><label>PF<input id="dc-pf" type="number" value="0.9" step="0.01"></label></div><div class="result-block" id="dc-result"></div><div class="result-block" id="dc-suggest"></div><div class="result-block" id="dc-chart"></div></article></section>
-    <section class="page" id="temp-page"><button class="back-btn" data-nav-home>返回首頁</button><article class="card"><h2>溫度換算</h2><div class="inline"><input id="temp-value" type="number"><select id="temp-unit"><option>C</option><option>F</option></select></div><p id="temp-result">-</p></article></section>
-    <section class="page" id="airflow-page"><button class="back-btn" data-nav-home>返回首頁</button><article class="card"><h2>流量換算</h2><div class="inline"><input id="airflow-value" type="number"><select id="airflow-unit"><option>CFM</option><option>CMH</option></select></div><p id="airflow-result">-</p></article></section>
-    <section class="page" id="pressure-page"><button class="back-btn" data-nav-home>返回首頁</button><article class="card"><h2>壓力換算</h2><div class="inline"><input id="pressure-value" type="number"><select id="pressure-unit"><option>Pa</option><option>kPa</option></select></div><p id="pressure-result">-</p></article></section>
-    <section class="page" id="feedback-page"><button class="back-btn" data-nav-home>返回首頁</button><article class="card"><h2>意見回饋</h2><div id="feedback-content"></div></article></section>
-  </main>
-  <script src="./src/data/pipeSizes.js"></script>
-  <script src="./app.js?v=20260508-v11" defer></script>
-</body>
+      <section id="tool" class="tool-card"></section>
+    </main>
+
+    <script src="src/data/pipeSizes.js"></script>
+    <script src="app.js"></script>
+  </body>
 </html>
