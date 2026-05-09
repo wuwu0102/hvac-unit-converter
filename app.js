@@ -1,66 +1,37 @@
-const FEEDBACK_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSc95R0vPbKHLP9kP4MkCxsTVxk0aHTw4iCqlEHNb-Aa6RSWNQ/viewform';
-const FEEDBACK_MAILTO = 'mailto:chttwm@gmail.com?subject=HVAC%20Unit%20Converter%20%E6%84%8F%E8%A6%8B%E5%9B%9E%E9%A5%8B';
-
-function initNav() {
-  const pages = document.querySelectorAll('.page');
-  const home = document.getElementById('home-page');
-  document.querySelectorAll('[data-nav-target]').forEach((btn) => btn.addEventListener('click', () => {
-    pages.forEach((p) => p.classList.remove('active'));
-    document.getElementById(btn.dataset.navTarget)?.classList.add('active');
-  }));
-  document.querySelectorAll('[data-nav-home]').forEach((btn) => btn.addEventListener('click', () => {
-    pages.forEach((p) => p.classList.remove('active'));
-    home?.classList.add('active');
-  }));
-}
-
-function initPipeSuggestTool() {
-  const input = document.querySelector('[data-role="pipe-flow"]');
-  const output = document.querySelector('[data-role="pipe-result"]');
-  if (!input || !output || !window.PipeSizes) return;
-  function render() {
-    const lpm = Number(input.value);
-    if (!Number.isFinite(lpm) || lpm <= 0) { output.textContent = '-'; return; }
-    const rec = window.PipeSizes.getRecommendedPipeForFlow(lpm, 3);
-    if (!rec) {
-      output.textContent = '超過 400A 表內最大管徑，請進一步工程設計。';
-      return;
-    }
-    output.innerText = `建議管徑：${rec.pipe.a}\n建議流速：約 ${rec.velocity.toFixed(1)} m/s\n3 m/s 僅作為設計選管建議值，實際設計仍需依現場條件複核。`;
-  }
-  input.addEventListener('input', render);
-  render();
-}
-
-function initDpFlowTool() {
-  const m = document.querySelector('[data-role="dp-measured"]');
-  const mu = document.querySelector('[data-role="dp-measured-unit"]');
-  const ps = document.querySelector('[data-role="dp-pipe-size"]');
-  const rf = document.querySelector('[data-role="dp-ref-flow"]');
-  const rl = document.querySelector('[data-role="dp-ref-loss"]');
-  const rlu = document.querySelector('[data-role="dp-ref-loss-unit"]');
-  const out = document.querySelector('[data-role="dp-result"]');
-  const warn = document.querySelector('[data-role="dp-warning"]');
-  if (!m || !mu || !ps || !rf || !rl || !rlu || !out || !window.PipeSizes) return;
-  const toPa = { kPa: 1000, mAq: 9806.65, bar: 100000, psi: 6894.76 };
-  window.PipeSizes.PIPE_SIZES.forEach((p) => { const o = document.createElement('option'); o.value = p.a; o.textContent = p.a; ps.appendChild(o); });
-  function area(mm){const d=mm/1000; return Math.PI*d*d/4;}
-  function render(){
-    const measured = Number(m.value), refFlow = Number(rf.value), refLoss = Number(rl.value);
-    if (![measured,refFlow,refLoss].every((n)=>Number.isFinite(n)&&n>0)) { out.textContent='-'; warn.textContent=''; return; }
-    const measuredPa = measured * toPa[mu.value], refPa = refLoss * toPa[rlu.value];
-    const rawFlowLpm = refFlow * Math.sqrt(measuredPa / refPa);
-    out.textContent = `預估流量（LPM）：${rawFlowLpm.toFixed(1)}`;
-    const pipe = window.PipeSizes.PIPE_SIZES.find((p)=>p.a===ps.value);
-    const velocity = (rawFlowLpm/60000)/area(pipe.innerDiameterMm);
-    warn.textContent = velocity > 3 ? '提醒：推估流速偏高，請確認壓差單位、量測點、管徑與設備特性。' : '';
-  }
-  [m,mu,ps,rf,rl,rlu].forEach((el)=>{el.addEventListener('input',render);el.addEventListener('change',render);});
-}
-
-function initFeedbackTool() {
-  document.querySelector('[data-feedback-google]')?.addEventListener('click', () => window.open(FEEDBACK_FORM_URL, '_blank', 'noopener'));
-  document.querySelector('[data-feedback-email]')?.addEventListener('click', () => { window.location.href = FEEDBACK_MAILTO; });
-}
-
-document.addEventListener('DOMContentLoaded', () => { initNav(); initPipeSuggestTool(); initDpFlowTool(); initFeedbackTool(); });
+const FEEDBACK_FORM_URL='https://docs.google.com/forms/d/e/1FAIpQLSc95R0vPbKHLP9kP4MkCxsTVxk0aHTw4iCqlEHNb-Aa6RSWNQ/viewform';
+const FEEDBACK_MAILTO='mailto:chttwm@gmail.com?subject=HVAC%20Unit%20Converter%20%E6%84%8F%E8%A6%8B%E5%9B%9E%E9%A5%8B';
+const $=(s,r=document)=>r.querySelector(s);
+const panel=(title,inner)=>`<article class="card"><h2>${title}</h2>${inner}</article>`;
+const toolRegistry=[
+{id:'dc',name:'機房 / 資料中心整合估算',render:()=>panel('機房 / 資料中心整合估算',`<div class='grid'><div class='field'><label>機櫃數量</label><input id='dc-racks' type='number' value='20'></div><div class='field'><label>每櫃 kW</label><input id='dc-kw' type='number' value='4'></div><div class='field'><label>UPS 效率(%)</label><input id='dc-ups' type='number' value='95'></div><div class='field'><label>PUE</label><input id='dc-pue' type='number' step='0.01' value='1.6'></div></div><div class='result' id='dc-result'>-</div>`)},
+{id:'vent',name:'換氣量計算',render:()=>panel('換氣量計算',`<div class='grid'><div class='field'><label>長(m)</label><input id='vent-l' type='number' value='10'></div><div class='field'><label>寬(m)</label><input id='vent-w' type='number' value='8'></div><div class='field'><label>高(m)</label><input id='vent-h' type='number' value='3'></div><div class='field'><label>ACH(/hr)</label><input id='vent-ach' type='number' value='8'></div></div><div class='result' id='vent-result'>-</div>`)},
+{id:'cool',name:'冷負載估算',render:()=>panel('冷負載估算',`<div class='grid'><div class='field'><label>長(m)</label><input id='cool-l' type='number' value='10'></div><div class='field'><label>寬(m)</label><input id='cool-w' type='number' value='8'></div><div class='field'><label>估算方式</label><select id='cool-mode'><option value='basic'>基本 W/m²</option><option value='it'>IT + 照明</option></select></div><div class='field'><label>W/m² 或 IT kW</label><input id='cool-factor' type='number' value='120'></div></div><div class='result' id='cool-result'>-</div>`)},
+{id:'pipe',name:'水管管徑建議',render:()=>panel('水管管徑建議',`<div class='field'><label>流量 (LPM)</label><input id='pipe-flow' type='number' value='5000'></div><div class='result' id='pipe-result'>-</div><p class='hint'>3 m/s 為設計建議值，不是錯誤上限。</p>`)},
+{id:'dp',name:'壓差估算流量',render:()=>panel('壓差估算流量',`<div class='grid'><div class='field'><label>量測壓差</label><input id='dp-m' type='number' value='20'></div><div class='field'><label>單位</label><select id='dp-mu'><option>kPa</option><option>mAq</option><option>bar</option><option>psi</option></select></div><div class='field'><label>參考流量(LPM)</label><input id='dp-rf' type='number' value='300'></div><div class='field'><label>參考壓損</label><input id='dp-rl' type='number' value='30'></div><div class='field'><label>參考壓損單位</label><select id='dp-ru'><option>kPa</option><option>mAq</option><option>bar</option><option>psi</option></select></div><div class='field'><label>管徑</label><select id='dp-ps'></select></div></div><div class='result' id='dp-result'>-</div><p class='hint' id='dp-warning'></p>`)},
+{id:'kwi',name:'kW 估算電流',render:()=>panel('kW 估算電流',`<div class='grid'><div class='field'><label>功率(kW)</label><input id='kwi-p' type='number' value='10'></div><div class='field'><label>電壓(V)</label><input id='kwi-v' type='number' value='380'></div><div class='field'><label>相數</label><select id='kwi-ph'><option value='1'>單相</option><option value='3' selected>三相</option></select></div><div class='field'><label>PF</label><input id='kwi-pf' type='number' step='0.01' value='0.9'></div></div><div class='result' id='kwi-result'>-</div>`)},
+{id:'temp',name:'溫度換算',render:()=>panel('溫度換算',`<div class='grid'><div class='field'><label>數值</label><input id='temp-in' type='number' value='0'></div><div class='field'><label>單位</label><select id='temp-unit'><option value='C'>°C</option><option value='F'>°F</option></select></div></div><div class='result' id='temp-result'>-</div>`)},
+{id:'flow',name:'流量換算',render:()=>panel('流量換算',`<div class='grid'><div class='field'><label>數值</label><input id='flow-in' type='number' value='1'></div><div class='field'><label>單位</label><select id='flow-unit'><option value='LPS'>L/s</option><option value='LPM'>L/min</option></select></div></div><div class='result' id='flow-result'>-</div>`)},
+{id:'pressure',name:'壓力換算',render:()=>panel('壓力換算',`<div class='grid'><div class='field'><label>數值</label><input id='pr-in' type='number' value='1'></div><div class='field'><label>單位</label><select id='pr-unit'><option value='kPa'>kPa</option><option value='Pa'>Pa</option></select></div></div><div class='result' id='pr-result'>-</div>`)},
+{id:'velocity',name:'流速換算',render:()=>panel('流速換算',`<div class='grid'><div class='field'><label>數值</label><input id='vel-in' type='number' value='1'></div><div class='field'><label>單位</label><select id='vel-unit'><option value='ms'>m/s</option><option value='kmh'>km/h</option></select></div></div><div class='result' id='vel-result'>-</div>`)},
+{id:'power',name:'電力單位換算',render:()=>panel('電力單位換算',`<div class='grid'><div class='field'><label>數值</label><input id='pow-in' type='number' value='1'></div><div class='field'><label>from</label><select id='pow-unit'><option value='kW'>kW</option><option value='RT'>RT</option></select></div></div><div class='result' id='pow-result'>-</div>`)},
+{id:'feedback',name:'意見回饋',render:()=>panel('意見回饋',`<button class='btn' id='fb-google'>Google Form 回饋</button> <button class='btn' id='fb-email'>Email 備援回饋</button>`)},
+];
+function renderHome(){return `<section class='page active' id='home'><h1>HVAC 工程工具</h1><div class='menu-grid'>${toolRegistry.map(t=>`<button class='menu-button' data-tool='${t.id}'>${t.name}</button>`).join('')}</div></section>`}
+function openTool(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));$(`#page-${id}`).classList.add('active')}
+function renderMobileResultCards(){}
+function bindConverter(input,unit,out,fn){const r=()=>out.textContent=fn(Number(input.value),unit.value);[input,unit].forEach(el=>{el.addEventListener('input',r);el.addEventListener('change',r)});r()}
+function initTempTool(){bindConverter($('#temp-in'),$('#temp-unit'),$('#temp-result'),(v,u)=>u==='C'?`${v}°C = ${(v*9/5+32).toFixed(1)}°F`:`${v}°F = ${((v-32)*5/9).toFixed(1)}°C`)}
+function initFlowTool(){bindConverter($('#flow-in'),$('#flow-unit'),$('#flow-result'),(v,u)=>u==='LPS'?`${v} L/s = ${(v*60).toFixed(1)} L/min`:`${v} L/min = ${(v/60).toFixed(3)} L/s`)}
+function initPressureTool(){bindConverter($('#pr-in'),$('#pr-unit'),$('#pr-result'),(v,u)=>u==='kPa'?`${v} kPa = ${(v*1000).toFixed(0)} Pa`:`${v} Pa = ${(v/1000).toFixed(3)} kPa`)}
+function initVelocityTool(){bindConverter($('#vel-in'),$('#vel-unit'),$('#vel-result'),(v,u)=>u==='ms'?`${v} m/s = ${(v*3.6).toFixed(2)} km/h`:`${v} km/h = ${(v/3.6).toFixed(3)} m/s`)}
+function initPowerUnitTool(){bindConverter($('#pow-in'),$('#pow-unit'),$('#pow-result'),(v,u)=>u==='kW'?`${v} kW = ${(v/3.517).toFixed(3)} RT`:`${v} RT = ${(v*3.517).toFixed(3)} kW`)}
+function initKwiTool(){const ids=['#kwi-p','#kwi-v','#kwi-ph','#kwi-pf'];const out=$('#kwi-result');const r=()=>{const p=+$('#kwi-p').value,v=+$('#kwi-v').value,pf=+$('#kwi-pf').value,ph=$('#kwi-ph').value;const i=ph==='3'?(p*1000)/(Math.sqrt(3)*v*pf):(p*1000)/(v*pf);out.textContent=`預估電流：${i.toFixed(2)} A`;};ids.forEach(id=>$(id).addEventListener('input',r));r();}
+function initVentilationTool(){const r=()=>{const v=+$('#vent-l').value*+$('#vent-w').value*+$('#vent-h').value;const ach=+$('#vent-ach').value;$('#vent-result').textContent=`風量需求：${(v*ach).toFixed(1)} m³/h`;};['#vent-l','#vent-w','#vent-h','#vent-ach'].forEach(id=>$(id).addEventListener('input',r));r();}
+function initCoolingLoadTool(){const r=()=>{const area=+$('#cool-l').value*+$('#cool-w').value;const factor=+$('#cool-factor').value;const mode=$('#cool-mode').value;const kw=mode==='basic'?(area*factor/1000):(factor+area*0.015);$('#cool-result').textContent=`估算冷負載：${kw.toFixed(2)} kW (${(kw/3.517).toFixed(2)} RT)`;};['#cool-l','#cool-w','#cool-factor','#cool-mode'].forEach(id=>$(id).addEventListener('input',r));r();}
+function initDataCenterLoadTool(){const r=()=>{const it=+$('#dc-racks').value*+$('#dc-kw').value;const ups=+$('#dc-ups').value/100,pue=+$('#dc-pue').value;const facility=it*pue;$('#dc-result').textContent=`IT 負載：${it.toFixed(1)} kW\nUPS 輸入需求：${(it/ups).toFixed(1)} kW\n總設施負載：${facility.toFixed(1)} kW`;};['#dc-racks','#dc-kw','#dc-ups','#dc-pue'].forEach(id=>$(id).addEventListener('input',r));r();}
+const initDcSharedTool=initDataCenterLoadTool;
+function initPipeSuggestTool(){const i=$('#pipe-flow'),o=$('#pipe-result');const r=()=>{const rec=window.PipeSizes.getRecommendedPipeForFlow(+i.value,3);o.textContent=rec?`建議管徑：${rec.pipe.a}（流速 ${rec.velocity.toFixed(2)} m/s）`:'超過 400A，請工程複核';};i.addEventListener('input',r);r();}
+function initDpFlowTool(){const toPa={kPa:1000,mAq:9806.65,bar:100000,psi:6894.76};window.PipeSizes.PIPE_SIZES.forEach(p=>$('#dp-ps').insertAdjacentHTML('beforeend',`<option value='${p.a}'>${p.a}</option>`));const area=mm=>Math.PI*(mm/1000)**2/4;const r=()=>{const measured=+$('#dp-m').value,rf=+$('#dp-rf').value,rl=+$('#dp-rl').value;const flow=rf*Math.sqrt((measured*toPa[$('#dp-mu').value])/(rl*toPa[$('#dp-ru').value]));$('#dp-result').textContent=`預估流量（LPM）：${flow.toFixed(1)}`;const pipe=window.PipeSizes.PIPE_SIZES.find(p=>p.a===$('#dp-ps').value);const vel=(flow/60000)/area(pipe.innerDiameterMm);$('#dp-warning').textContent=vel>3?'提醒：流速偏高，請檢核，但不影響推估值顯示。':'';};['#dp-m','#dp-rf','#dp-rl','#dp-mu','#dp-ru','#dp-ps'].forEach(id=>$(id).addEventListener('input',r));r();}
+function initFeedbackTool(){$('#fb-google').onclick=()=>window.open(FEEDBACK_FORM_URL,'_blank','noopener');$('#fb-email').onclick=()=>window.location.href=FEEDBACK_MAILTO;}
+function initNav(){$('[data-tool]');document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>openTool(b.dataset.tool));document.querySelectorAll('[data-nav-home]').forEach(b=>b.onclick=()=>openTool('home'));}
+(function bootstrap(){const app=$('#app');app.innerHTML=renderHome()+toolRegistry.map(t=>`<section class='page' id='page-${t.id}'><button class='back-btn' data-nav-home>返回首頁</button>${t.render()}</section>`).join('');document.getElementById('home').id='page-home';initNav();initTempTool();initFlowTool();initPressureTool();initVelocityTool();initPowerUnitTool();initKwiTool();initPipeSuggestTool();initDpFlowTool();initVentilationTool();initCoolingLoadTool();initDataCenterLoadTool();initFeedbackTool();renderMobileResultCards();})();
