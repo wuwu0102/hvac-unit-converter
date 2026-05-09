@@ -1,4 +1,5 @@
 (function initPipeSizes(global) {
+  // Web V1.1 production pipe table (15A~400A).
   const PIPE_SIZES = [
     ['15A', 15.8], ['20A', 20.9], ['25A', 26.6], ['32A', 35.1], ['40A', 40.9],
     ['50A', 52.5], ['65A', 62.7], ['80A', 77.9], ['100A', 102.3], ['125A', 128.2],
