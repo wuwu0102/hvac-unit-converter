@@ -107,37 +107,28 @@ function initVentilationTool(){const calc=()=>{const lm=toM(+l.value,ul.value),w
 function initCoolingLoadTool(){const calc=()=>{const length=parsePositiveNumberInput(cl.value);const width=parsePositiveNumberInput(cw.value);if(!length||!width){r.textContent='-';return;}const unitScale=toM(1,cu.value);const lengthM=length*unitScale,widthM=width*unitScale,areaM2=lengthM*widthM,areaFt2=areaM2*10.76391041671,ping=areaM2/3.3058;let kw,rt,btu;const method=cm.value;if(method==='Wm2'){const density=parsePositiveNumberInput(cd.value);if(!density){r.textContent='-';return;}kw=areaM2*density/1000;rt=kw/3.5168525;btu=kw*3412.142;}else{const pingPerRt=parsePositiveNumberInput(cpr.value);if(!pingPerRt){r.textContent='-';return;}rt=ping/pingPerRt;kw=rt*3.5168525;btu=kw*3412.142;}r.innerHTML=`面積：${format1(areaM2)} m²<br>面積：${format1(areaFt2)} ft²<br>坪數：${format1(ping)} 坪<br>冷負載：${format1(kw)} kW<br>冷負載：${format1(rt)} RT<br>冷負載：${format1(btu)} BTU/h<br>使用估算方式：${method==='Wm2'?'W/m²':'坪/RT'}`;};const syncMode=()=>{const isWm2=cm.value==='Wm2';cdWrap.style.display=isWm2?'':'none';cprWrap.style.display=isWm2?'none':'';calc();};['cl','cw','cu','cm','cd','cpr'].forEach(i=>document.getElementById(i).addEventListener('input',i==='cm'?syncMode:calc));syncMode();}
 function initDataCenterLoadTool(){ initDcSharedTool();}
 function initFeedbackTool() {
-  const formLinks = Array.from(document.querySelectorAll('[data-feedback-google], a[href*="docs.google.com/forms"], a'));
-  formLinks.forEach((el) => {
-    const text = (el.textContent || '').trim();
-    const href = el.getAttribute?.('href') || '';
-    if (text.includes('Google Form') || href.includes('docs.google.com/forms')) {
-      el.setAttribute('href', FEEDBACK_FORM_URL);
-      el.setAttribute('target', '_blank');
-      el.setAttribute('rel', 'noopener');
-      el.onclick = null;
-    }
-  });
+  const container = document.querySelector('.feedback-actions');
+  if (!container) return;
 
-  const emailLinks = Array.from(document.querySelectorAll('[data-feedback-email], a[href^="mailto:"], a'));
-  emailLinks.forEach((el) => {
-    const text = (el.textContent || '').trim();
-    const href = el.getAttribute?.('href') || '';
-    if (text.includes('Email') || href.startsWith('mailto:')) {
-      el.setAttribute('href', FEEDBACK_MAILTO);
-      el.onclick = null;
-    }
-  });
+  const googleBtn = container.querySelector('[data-feedback-google]');
+  if (googleBtn) {
+    googleBtn.setAttribute('href', FEEDBACK_FORM_URL);
+    googleBtn.setAttribute('target', '_blank');
+    googleBtn.setAttribute('rel', 'noopener');
+  }
 
-  document.querySelectorAll('[data-feedback-google]').forEach((btn) => {
-    btn.addEventListener('click', () => window.open(FEEDBACK_FORM_URL, '_blank', 'noopener'));
-  });
+  const emailBtn = container.querySelector('[data-feedback-email]');
+  if (emailBtn) {
+    emailBtn.setAttribute('href', FEEDBACK_MAILTO);
+  }
 
-  document.querySelectorAll('[data-feedback-email]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      window.location.href = FEEDBACK_MAILTO;
+  const backBtn = document.querySelector('[data-feedback-back]');
+  if (backBtn) {
+    backBtn.addEventListener('click', () => {
+      tool.classList.remove('active');
+      home.classList.add('active');
     });
-  });
+  }
 }
 function renderMobileResultCards(headers, rows){
   return `<div class='mobile-result-list'>${rows.map((cols)=>`<div class='mobile-result-card'>${headers.map((h,idx)=>`<div class='mobile-result-row'><span class='mobile-result-label'>${h}</span><span>${cols[idx]}</span></div>`).join('')}</div>`).join('')}</div>`;
@@ -156,7 +147,7 @@ const toolRegistry = {
   cool:{title:'冷負載估算',subtitle:'依長寬與估算方式初估',render:()=>`<div class='grid two'>${field('cl','長度')}${field('cw','寬度')}${selectField('cu','尺寸單位',`<option value='m'>m</option><option value='cm'>cm</option><option value='ft'>ft</option>`)}${selectField('cm','冷負載估算方式',`<option value='Wm2'>W/m²</option><option value='pingRT'>坪/RT</option>`)}</div><div id='cdWrap'>${field('cd','冷負載密度 W/m²','','150')}</div><div id='cprWrap' style='display:none'>${field('cpr','幾坪一 RT','','4')}</div><div id='r' class='result-box'>-</div>`,init:initCoolingLoadTool},
   dc:{title:'機房 / 資料中心整合估算',subtitle:'負載、散熱、用電容量、建議配置與 PUE。',render:()=>`<div class='grid three'>${field('rw','排數','例如 5','','機櫃排列的排數')}${field('rr','每排機櫃數','例如 10')}${field('rk','每櫃功率 kW','例如 2','','每一櫃 IT 設備功率')}${field('rl','機房長度','例如 13.2')}${field('rwid','機房寬度','例如 10.2')}${field('rh','機房高度','例如 3.0')}${selectField('unit','長寬高單位',`<option value='m'>m</option><option value='cm'>cm</option>`)}${field('pp','人員數','','5')}${field('uf','UPS 發熱係數','','0.09')}${field('df','配電系統發熱係數','','0.03')}${field('ld','照明密度 W/m²','','21.53')}${field('or','其他用電比例','','0.14')}${field('vv','電壓 V','','380')}${field('pf','功率因數 PF','','0.95')}</div><div class='dc-nav'><a class='dc-nav-btn' href='#dc-space'>空間</a><a class='dc-nav-btn' href='#dc-heat'>散熱</a><a class='dc-nav-btn' href='#dc-power'>用電</a><a class='dc-nav-btn' href='#dc-advice'>建議</a><a class='dc-nav-btn' href='#dc-chart'>圖表</a><a class='dc-nav-btn' href='#dc-pue'>PUE</a></div><div id='rrr' class='result-box'>-</div><div class='table-wrap'><div id='bars'></div></div><p class='source'>資料來源：<br>${sourceText}</p>`,init:initDataCenterLoadTool},
   kwi:{title:'kW估算電流',subtitle:'提供單相與三相電流估算。',render:()=>`<div class='grid two'>${selectField('powerTypeK','電源型式',`<option value='three' selected>三相</option><option value='single'>單相</option>`)}${field('pk','功率 kW','例如 20')}${field('vk','電壓 V','例如 380','380')}${field('pfk','功率因數 PF','','0.95')}</div><div id='r' class='result-box'>-</div>`,init:initKwiTool},
-  feedback:{title:'意見回饋',subtitle:'回報問題與建議。',render:()=>`<div class='result-box'><a class='btn' data-feedback-google href='${FEEDBACK_FORM_URL}' target='_blank' rel='noopener'>Google Form 回饋</a><a class='btn secondary' data-feedback-email href='${FEEDBACK_MAILTO}'>Email 備援回饋</a></div>`,init:initFeedbackTool}
+  feedback:{title:'意見回饋',subtitle:'回報問題與建議。',render:()=>`<section class='feedback-card'><button type='button' class='menu-button' data-feedback-back>← 返回首頁</button><h3>意見回饋</h3><p class='feedback-desc'>若使用中遇到問題或有功能建議，歡迎透過下列方式回饋。</p><div class='feedback-actions'><a class='feedback-button' data-feedback-google href='${FEEDBACK_FORM_URL}' target='_blank' rel='noopener'>Google Form 回饋</a><a class='feedback-button secondary' data-feedback-email href='${FEEDBACK_MAILTO}'>Email 備援回饋</a></div><p class='feedback-note'>提醒：若要回報畫面問題，請附上截圖與操作步驟，會更快協助排查。</p></section>`,init:initFeedbackTool}
 };
 
 function openTool(id){ const normalizedId=({heat:'dc',power:'dc'})[id]||id; const cfg=toolRegistry[normalizedId]; if(!cfg)return; panel(cfg.title,cfg.subtitle,cfg.render()); cfg.init(); }

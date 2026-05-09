@@ -45,3 +45,13 @@ input,select,textarea{display:block;width:100%;max-width:100%;min-width:0;min-he
 .vent-col-item,.vent-col-value,.vent-col-unit{min-width:0;overflow-wrap:anywhere}
 .vent-col-value{text-align:right;font-variant-numeric:tabular-nums}
 .vent-col-unit{text-align:left}
+
+.feedback-card{margin-top:10px;padding:16px;border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:0 2px 8px rgba(15,23,42,.05)}
+.menu-button{display:inline-flex;align-items:center;justify-content:center;margin-bottom:10px;border:1px solid #93c5fd;background:#eff6ff;color:#1d4ed8;padding:10px 14px;border-radius:10px;font-weight:700;text-decoration:none;cursor:pointer}
+.feedback-card h3{margin:0 0 8px}
+.feedback-desc{margin:0 0 12px;color:#334155}
+.feedback-actions{display:grid;gap:10px}
+.feedback-button{display:flex;align-items:center;justify-content:center;padding:12px 14px;border-radius:10px;background:#2563eb;color:#fff;font-weight:700;text-decoration:none;border:1px solid #1d4ed8}
+.feedback-button.secondary{background:#1d4ed8}
+.feedback-note{margin:12px 0 0;color:#475569}
+@media (max-width:640px){.feedback-card{padding:14px}.menu-button,.feedback-button{width:100%;font-size:1.2rem;min-height:56px}}
