@@ -23,59 +23,56 @@ jobs:
           ref: main
           path: test-src
 
-      - name: Sync only web production files
+      - name: Backup production workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp
+          cp -a production/.github/workflows /tmp/workflows-backup
+
+      - name: Allowlist copy web files only
         shell: bash
         run: |
           set -euo pipefail
 
-          # Recreate production tree with only protected root files kept.
-          find production -mindepth 1 -maxdepth 1 \
-            ! -name '.git' \
-            ! -name 'README.md' \
-            ! -name '.nojekyll' \
-            -exec rm -rf {} +
+          # Required
+          cp -a test-src/index.html production/index.html
+          cp -a test-src/app.js production/app.js
+          cp -a test-src/styles.css production/styles.css
+          rm -rf production/src
+          cp -a test-src/src production/src
 
-          # Allowlist copy: copy only files/folders required by web production.
-          # Explicitly avoid .github and workflow files.
-          rsync -a --delete \
-            --exclude='*' \
-            --include='index.html' \
-            --include='styles.css' \
-            --include='app.js' \
-            --include='package.json' \
-            --include='package-lock.json' \
-            --include='smoke-test.js' \
-            --include='src/***' \
-            --include='docs/***' \
-            --include='scripts/***' \
-            test-src/ production/
+          # Optional (copy only when present)
+          [ -f test-src/package.json ] && cp -a test-src/package.json production/package.json || true
+          [ -f test-src/package-lock.json ] && cp -a test-src/package-lock.json production/package-lock.json || true
+          [ -f test-src/smoke-test.js ] && cp -a test-src/smoke-test.js production/smoke-test.js || true
 
-          # Defensive cleanup for forbidden paths/files.
-          rm -rf \
-            production/.github \
-            production/android \
-            production/ios \
-            production/web \
-            production/lib \
-            production/test \
-            production/legacy-web
+          if [ -d test-src/docs ]; then
+            rm -rf production/docs
+            cp -a test-src/docs production/docs
+          fi
 
-          rm -f \
-            production/analysis_options.yaml \
-            production/pubspec.yaml \
-            production/ExportOptions.plist
+          if [ -d test-src/scripts ]; then
+            rm -rf production/scripts
+            cp -a test-src/scripts production/scripts
+          fi
 
-          # Defensive cleanup for any workflow yml/yaml that might slip in.
-          find production -type f \( -name '*.yml' -o -name '*.yaml' \) \
-            -path '*/.github/workflows/*' -delete
-
-      - name: Validate no workflow files are synced
+      - name: Restore workflow files
         shell: bash
         run: |
           set -euo pipefail
+          rm -rf production/.github/workflows
+          mkdir -p production/.github
+          cp -a /tmp/workflows-backup production/.github/workflows
 
-          if find production/.github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \) 2>/dev/null | grep -q .; then
-            echo "Error: workflow files were copied into production sync output"
+      - name: Validate workflows unchanged
+        shell: bash
+        working-directory: production
+        run: |
+          set -euo pipefail
+          if [ -n "$(git status --porcelain .github/workflows)" ]; then
+            echo "Error: .github/workflows changes detected in sync output"
+            git status --porcelain .github/workflows
             exit 1
           fi
 
@@ -88,15 +85,14 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          if git status --porcelain | grep -qE '^.. \.github/workflows/'; then
-            echo "Error: .github/workflows changes detected in sync output"
-            git status --porcelain
-            exit 1
-          fi
-
           if [ -n "$(git status --porcelain)" ]; then
-            git add -A
-            git commit -m "sync test web v1.1 to production (exclude workflows)"
+            git add index.html app.js styles.css src
+            [ -f package.json ] && git add package.json || true
+            [ -f package-lock.json ] && git add package-lock.json || true
+            [ -f smoke-test.js ] && git add smoke-test.js || true
+            [ -d docs ] && git add docs || true
+            [ -d scripts ] && git add scripts || true
+            git commit -m "Prevent workflow files from being touched during test Web sync"
             git push origin HEAD:main
           else
             echo "No changes to commit"
