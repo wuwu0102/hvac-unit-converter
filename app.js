@@ -1,60 +1,130 @@
-const FEEDBACK_FORM_URL='https://docs.google.com/forms/d/e/1FAIpQLSc95R0vPbKHLP9kP4MkCxsTVxk0aHTw4iCqlEHNb-Aa6RSWNQ/viewform';
-const FEEDBACK_MAILTO='mailto:chttwm@gmail.com?subject=HVAC%20Unit%20Converter%20%E6%84%8F%E8%A6%8B%E5%9B%9E%E9%A5%8B';
-const $=(s,r=document)=>r.querySelector(s);
-const panel=(title,inner)=>`<article class="card"><h2>${title}</h2>${inner}</article>`;
+const home = document.getElementById('home');
+const tool = document.getElementById('tool');
 
-function buildPieSection(title, items, wrapClass, pieClass) {
-  const total = items.reduce((s, i) => s + i.value, 0) || 1;
-  const stops = [];
-  let acc = 0;
-  items.forEach(i => {
-    const start = (acc / total) * 100;
-    acc += i.value;
-    const end = (acc / total) * 100;
-    stops.push(`${i.color} ${start.toFixed(2)}% ${end.toFixed(2)}%`);
+const { PIPE_SIZE_OPTIONS, getPipeSizeById, calculateVelocityFromLpmAndDiameter, getRecommendedPipeForFlow } = window.PipeSizes || {};
+const sourceText = '依據：APC－計算數據中心製冷量';
+
+const parseNumber = (raw) => {
+  const text = String(raw ?? '').trim();
+  if (text === '' || text === '-' || text === '.') return null;
+  const value = Number(text);
+  return Number.isFinite(value) ? value : null;
+};
+const parsePositiveNumberInput = (value) => {
+  const parsed = parseNumber(value);
+  return parsed !== null && parsed > 0 ? parsed : null;
+};
+const format1 = (value) => (Number.isFinite(value) ? String(Number(value.toFixed(1))) : '-');
+const m3hToCfm = (v) => v / 1.699;
+const toM = (v, u) => (u === 'cm' ? v / 100 : u === 'ft' ? v * 0.3048 : v);
+const dpToPa = (v, u) => ({ Pa: v, kPa: v * 1000, mH2O: v * 9806.65, bar: v * 100000 }[u]);
+
+const UPS_STEPS = [50, 60, 80, 100, 120, 160, 200, 250, 300, 400, 500, 600, 800, 1000];
+const NFB_STEPS = [50, 75, 100, 125, 150, 175, 200, 225, 250, 300, 350, 400, 500, 600, 700, 800, 1000, 1200];
+const RT_PER_KW = 3.5168525;
+const WATER_COOLED_HVAC_FACTORS = {
+  chiller: 0.65,
+  coolingTower: 0.03,
+  chwPump: 0.05,
+  cwPump: 0.05,
+  ahuFan: 0.08
+};
+const roundUpToStep = (value, steps) => {
+  if (!Number.isFinite(value) || value <= 0) return null;
+  const step = steps.find((s) => value <= s);
+  return step ?? steps[steps.length - 1];
+};
+const roundUpToMultiple = (value, multiple) => {
+  if (!Number.isFinite(value) || value <= 0 || !Number.isFinite(multiple) || multiple <= 0) return null;
+  return Math.ceil(value / multiple) * multiple;
+};
+
+const tools = [
+  ['dc','A','機房 / 資料中心整合估算','負載、散熱、用電容量、建議配置與 PUE'],
+  ['vent','B','換氣量計算','依長寬高與ACH估算 CMH / CMM / CFM'], ['cool','B','冷負載估算','依長寬與模式初估容量'],
+  ['pipe','C','水管管徑建議','依流量與流速建議管徑'], ['dp','C','壓差估算流量','依ΔP快速估算流量'],
+  ['kwi','D','kW估算電流','單相/三相電流估算'],
+  ['temp','E','溫度換算','°C / °F / K'], ['flow','E','流量換算','L/s、L/min、CMH、CFM'], ['press','E','壓力換算','Pa / kPa / bar / psi'], ['vel','E','流速換算','m/s、km/h、ft/s'], ['punit','E','電力單位換算','W / kW / hp'],
+  ['feedback','F','意見回饋','回饋建議與需求']
+];
+
+const field = (id, label, p='', v='', help='') => `<div class='field'><label for='${id}'>${label}</label><input id='${id}' type='text' inputmode='decimal' autocomplete='off' placeholder='${p}' value='${v}' />${help?`<small class='help'>${help}</small>`:''}</div>`;
+const selectField = (id, label, options, help='') => `<div class='field'><label for='${id}'>${label}</label><select id='${id}'>${options}</select>${help?`<small class='help'>${help}</small>`:''}</div>`;
+
+function renderHome(){
+  document.querySelectorAll('.card-grid').forEach(g=>{
+    g.innerHTML=tools.filter(t=>t[1]===g.dataset.group).map(t=>`<button class="entry" data-id="${t[0]}"><b>${t[2]}</b><small>${t[3]}</small></button>`).join('');
   });
-  return `<section class="dc-section dc-chart"><h4>${title}</h4><div class="${wrapClass}"><div class="${pieClass}" style="background:conic-gradient(${stops.join(',')})"></div><div class="pie-legend">${items.map(i=>`<div><span class="dot" style="background:${i.color}"></span>${i.label}：${i.value.toFixed(2)} kW</div>`).join('')}</div></div></section>`;
+  document.querySelectorAll('.entry').forEach(e=>e.onclick=()=>openTool(e.dataset.id));
 }
 
-const toolRegistry=[
-{id:'dc',name:'資料中心整合估算',render:()=>panel('資料中心整合估算',`
-<div class='grid'>
-<div class='field'><label>排數</label><input id='dc-rows' type='number' value='4'></div>
-<div class='field'><label>每排機櫃數</label><input id='dc-racks-per-row' type='number' value='10'></div>
-<div class='field'><label>每櫃功率 kW</label><input id='dc-kw-per-rack' type='number' value='5'></div>
-<div class='field'><label>機房長度</label><input id='dc-length' type='number' value='20'></div>
-<div class='field'><label>機房寬度</label><input id='dc-width' type='number' value='12'></div>
-<div class='field'><label>機房高度</label><input id='dc-height' type='number' value='4'></div>
-<div class='field'><label>長寬高單位</label><select id='dc-dim-unit'><option value='m'>m</option><option value='ft'>ft</option></select></div>
-<div class='field'><label>人員數</label><input id='dc-people' type='number' value='8'></div>
-<div class='field'><label>UPS 發熱係數</label><input id='dc-ups-heat' type='number' step='0.01' value='0.08'></div>
-<div class='field'><label>配電系統發熱係數</label><input id='dc-pd-heat' type='number' step='0.01' value='0.04'></div>
-<div class='field'><label>照明密度 W/m²</label><input id='dc-lighting-density' type='number' value='12'></div>
-<div class='field'><label>其他用電比例</label><input id='dc-other-ratio' type='number' step='0.01' value='0.06'></div>
-<div class='field'><label>電壓 V</label><input id='dc-voltage' type='number' value='380'></div>
-<div class='field'><label>功率因數 PF</label><input id='dc-pf' type='number' step='0.01' value='0.92'></div>
-</div><div class='result' id='dc-result'>-</div>`)} ,
-{id:'pipe',name:'水管管徑建議',render:()=>panel('水管管徑建議',`<div class='field'><label>流量 (LPM)</label><input id='pipe-flow' type='number' value='5000'></div><div class='result' id='pipe-result'>-</div>`)},
-{id:'dp',name:'壓差估算流量',render:()=>panel('壓差估算流量',`<div class='grid'><div class='field'><label>量測壓差 kPa</label><input id='dp-measured' type='number' value='20'></div><div class='field'><label>參考流量 LPM</label><input id='dp-ref-flow' type='number' value='300'></div><div class='field'><label>參考壓差 kPa</label><input id='dp-ref-loss' type='number' value='30'></div><div class='field'><label>管徑</label><select id='dp-pipe'></select></div></div><div class='result' id='dp-result'>-</div><p id='dp-warning'></p>`)} ,
-{id:'feedback',name:'feedback',render:()=>panel('feedback',`<button id='fb-google'>Google Form</button><button id='fb-email'>Email</button>`)},
-];
-function renderHome(){return `<section class='page active' id='home'><h1>HVAC Unit Converter Web V1.1</h1><div class='menu-grid'>${toolRegistry.map(t=>`<button class='menu-button' data-tool='${t.id}'>${t.name}</button>`).join('')}</div></section>`}
-function openTool(id){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));$(`#page-${id}`).classList.add('active')}
-function renderMobileResultCards(){}
-function initDataCenterLoadTool(){const r=()=>{const rows=+$('#dc-rows').value,rpr=+$('#dc-racks-per-row').value,kw=+$('#dc-kw-per-rack').value;const it=rows*rpr*kw;const unit=$('#dc-dim-unit').value==='ft'?0.3048:1;const l=+$('#dc-length').value*unit,w=+$('#dc-width').value*unit,h=+$('#dc-height').value*unit;const area=l*w;const volume=area*h;const ups=it*+$('#dc-ups-heat').value,pd=it*+$('#dc-pd-heat').value,light=area*+$('#dc-lighting-density').value/1000,other=it*+$('#dc-other-ratio').value;const people=+$('#dc-people').value*0.12;const cooling=ups+pd+light+other+people;const total=it+cooling;const pue=total/it;const i=(total*1000)/(Math.sqrt(3)*+$('#dc-voltage').value*+$('#dc-pf').value);
-const heatItems=[{label:'IT',value:it,color:'#2563eb'},{label:'UPS',value:ups,color:'#16a34a'},{label:'配電',value:pd,color:'#f59e0b'},{label:'照明',value:light,color:'#9333ea'},{label:'人員/其他',value:other+people,color:'#ef4444'}];
-const powerItems=[{label:'IT',value:it,color:'#2563eb'},{label:'空調總用電組成',value:cooling,color:'#0ea5e9'}];
-$('#dc-result').innerHTML=`<section class='dc-section dc-space'><h4>A. 機房空間</h4><p>面積 ${area.toFixed(2)} m²，體積 ${volume.toFixed(2)} m³。</p></section>
-<section class='dc-section dc-heat'><h4>B. 散熱評估</h4><p>IT ${it.toFixed(2)} kW，UPS ${ups.toFixed(2)} kW，配電 ${pd.toFixed(2)} kW，照明 ${light.toFixed(2)} kW，人員 ${people.toFixed(2)} kW。</p></section>
-<section class='dc-section dc-power'><h4>C. 預估用電容量 / NFB 估算</h4><p>總負載 ${total.toFixed(2)} kW，線電流 ${i.toFixed(2)} A，NFB / 幹線建議依 125% 餘裕選型。</p></section>
-<section class='dc-section dc-power-summary'><h4>C-1. 總用電分析</h4><p>IT 用電 ${it.toFixed(2)} kW，空調總用電組成 ${cooling.toFixed(2)} kW，總用電 ${total.toFixed(2)} kW。</p></section>
-<section class='dc-section dc-advice'><h4>D. 建議配置</h4><p>建議採用 N+1 冷卻、熱通道封閉與分區送風策略。</p></section>
-${buildPieSection('E. 散熱比例圖',heatItems,'heat-pie-wrap','heat-pie')}
-${buildPieSection('F. 總用電比例圖',powerItems,'heat-pie-wrap','heat-pie')}
-<section class='dc-section dc-pue'><h4>G. 理論 PUE</h4><p>理論 PUE 初估：${pue.toFixed(3)}</p></section>`;};['#dc-rows','#dc-racks-per-row','#dc-kw-per-rack','#dc-length','#dc-width','#dc-height','#dc-dim-unit','#dc-people','#dc-ups-heat','#dc-pd-heat','#dc-lighting-density','#dc-other-ratio','#dc-voltage','#dc-pf'].forEach(id=>$(id).addEventListener('input',r));r();}
-const initDcSharedTool=initDataCenterLoadTool;
-function initPipeSuggestTool(){const r=()=>{const rec=window.PipeSizes.getRecommendedPipeForFlow(+$('#pipe-flow').value,3);$('#pipe-result').textContent=rec?`建議管徑：${rec.pipe.a}`:'超過 400A';};$('#pipe-flow').addEventListener('input',r);r();}
-function initDpFlowTool(){window.PipeSizes.PIPE_SIZES.forEach(p=>$('#dp-pipe').insertAdjacentHTML('beforeend',`<option value='${p.a}'>${p.a}</option>`));const area=mm=>Math.PI*(mm/1000)**2/4;const r=()=>{const rawFlowLpm=+$('#dp-ref-flow').value*Math.sqrt(+$('#dp-measured').value/+$('#dp-ref-loss').value);$('#dp-result').textContent=`預估流量（LPM）：${rawFlowLpm.toFixed(1)}`;const pipe=window.PipeSizes.PIPE_SIZES.find(p=>p.a===$('#dp-pipe').value);const vel=(rawFlowLpm/60000)/area(pipe.innerDiameterMm);$('#dp-warning').textContent=vel>3?'警告：流速偏高，請檢核。':'提醒：壓差換算僅供估算，請以現場量測確認。';};['#dp-measured','#dp-ref-flow','#dp-ref-loss','#dp-pipe'].forEach(id=>$(id).addEventListener('input',r));r();}
-function initFeedbackTool(){$('#fb-google').onclick=()=>window.open(FEEDBACK_FORM_URL,'_blank','noopener');$('#fb-email').onclick=()=>window.location.href=FEEDBACK_MAILTO;}
-function initNav(){document.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>openTool(b.dataset.tool));document.querySelectorAll('[data-nav-home]').forEach(b=>b.onclick=()=>openTool('home'));}
-(function bootstrap(){const app=$('#app');app.innerHTML=renderHome()+toolRegistry.map(t=>`<section class='page' id='page-${t.id}'><button class='back-btn' data-nav-home>返回首頁</button>${t.render()}</section>`).join('');document.getElementById('home').id='page-home';initNav();initPipeSuggestTool();initDpFlowTool();initDataCenterLoadTool();initFeedbackTool();renderMobileResultCards();})();
+function panel(title, subtitle, inner){
+  home.classList.remove('active'); tool.classList.add('active');
+  tool.innerHTML=`<button class="back">← 返回首頁</button><h2>${title}</h2><p class="sub">${subtitle}</p>${inner}`;
+  tool.querySelector('.back').onclick=()=>{tool.classList.remove('active');home.classList.add('active');};
+}
+
+function bindConverter(ids, fromBase, toBase){
+  const calc=(src)=>{const raw=parseNumber(document.getElementById(src).value); if(raw===null)return; const base=fromBase(src, raw); ids.forEach((id)=>{if(id!==src) document.getElementById(id).value=format1(toBase(id, base));});};
+  ids.forEach(i=>document.getElementById(i).addEventListener('input',()=>calc(i)));
+}
+
+function initTempTool(){ bindConverter(['c','f','k'], (s,v)=>s==='c'?v:s==='f'?(v-32)*5/9:v-273.15, (id,b)=>id==='c'?b:id==='f'?b*9/5+32:b+273.15); }
+function initFlowTool(){ bindConverter(['ls','lm','cmh','cfm'], (s,v)=>({ls:v,lm:v/60,cmh:v/3.6,cfm:v/2118.88}[s]), (id,b)=>({ls:b,lm:b*60,cmh:b*3.6,cfm:b*2118.88}[id])); }
+function initPressureTool(){ bindConverter(['pa','kpa','bar','psi'], (s,v)=>({pa:v,kpa:v*1000,bar:v*100000,psi:v*6894.757}[s]), (id,b)=>({pa:b,kpa:b/1000,bar:b/100000,psi:b/6894.757}[id])); }
+function initVelocityTool(){ bindConverter(['ms','kmh','fts'], (s,v)=>({ms:v,kmh:v/3.6,fts:v/3.28084}[s]), (id,b)=>({ms:b,kmh:b*3.6,fts:b*3.28084}[id])); }
+function initPowerUnitTool(){ bindConverter(['w','kw','hp'], (s,v)=>({w:v,kw:v*1000,hp:v*745.7}[s]), (id,b)=>({w:b,kw:b/1000,hp:b/745.7}[id])); }
+
+function initKwiTool(){const calc=()=>{const p=+pk.value*1000,v=+vk.value,pf=+pfk.value,powerType=powerTypeK.value;const current=powerType==='three'?p/(Math.sqrt(3)*v*pf):p/(v*pf);const formula=powerType==='three'?'I = P × 1000 / (√3 × V × PF)':'I = P × 1000 / (V × PF)';const typeLabel=powerType==='three'?'三相':'單相';r.innerHTML=Number.isFinite(current)?`電源型式：${typeLabel}<br>估算電流：約 ${format1(current)} A<br>使用公式：${formula}`:'-';};['pk','vk','pfk','powerTypeK'].forEach(i=>document.getElementById(i).addEventListener('input',calc));calc();}
+function initPipeSuggestTool(){
+  const qLpm = document.getElementById('qLpm'); const r = document.getElementById('r');
+  const calc=()=>{const lpm=parsePositiveNumberInput(qLpm.value); if(!lpm){r.textContent='-';return;} const best=getRecommendedPipeForFlow(lpm,3); if(!best){r.innerHTML='超出表內最大管徑（400A），請重新確認流量與系統條件。';return;} r.innerHTML=`建議管徑：<b>${best.label}</b><br>建議流速：約 ${format1(best.velocityMs)} m/s<br><span class='muted'>3 m/s 僅作為設計選管建議值，實際設計仍需依現場條件複核。</span>`;};
+  qLpm.addEventListener('input', calc);
+}
+
+function initDpFlowTool(){
+  const calc=()=>{const measured=parsePositiveNumberInput(measuredDp.value); const pipe=getPipeSizeById(pipeUsed.value); if(!measured||!pipe){r.innerHTML='<b>A. 現場初估</b><br>-'; advResult.innerHTML=''; return;} const measuredPa=dpToPa(measured, measuredUnit.value);
+    const v=Math.sqrt((2*measuredPa/1000))*0.60; const area=Math.PI*Math.pow(pipe.innerDiameterMm/1000,2)/4; const rawFlowLpm=area*v*60000; const rawVelocity=calculateVelocityFromLpmAndDiameter(rawFlowLpm,pipe.innerDiameterMm);
+    const flowAt25=area*2.5*60000; const flowAt3=area*3*60000;
+    let displayFlowLpm=rawFlowLpm;
+    let reviewReminder='';
+    if(rawVelocity>3){displayFlowLpm=flowAt25; reviewReminder='提醒：此推估值對輸入條件較敏感，請確認壓差單位、量測點與管徑是否正確。';}
+    else if(rawVelocity>2.5){displayFlowLpm=Math.min(rawFlowLpm,flowAt3); reviewReminder='提醒：此推估值對輸入條件較敏感，請確認壓差單位、量測點與管徑是否正確。';}
+    r.innerHTML=`<b>A. 現場初估</b><br>壓差推估流量：約 ${format1(displayFlowLpm)} LPM<br>性質：依目前壓差與管徑推估，非流量計實測值。<br>提醒：實際流量請以流量計、TAB 平衡報告或設備量測資料為準。${reviewReminder?`<br>${reviewReminder}`:''}`;
+
+    const rf=parsePositiveNumberInput(refFlow.value); const rd=parsePositiveNumberInput(refDp.value);
+    if(rf&&rd){const refDpPa=dpToPa(rd, refDpUnit.value); const correctedFlowLpm=rf*Math.sqrt(measuredPa/refDpPa); advResult.innerHTML=`<b>B. 設備參考點修正</b><br>修正推估流量：約 ${format1(correctedFlowLpm)} LPM<br>性質：依參考流量與參考壓損修正之推估值<br>提醒：仍需以流量計或 TAB 資料確認`; } else {advResult.innerHTML='';}
+  };
+  ['measuredDp','measuredUnit','pipeUsed','refFlow','refDp','refDpUnit'].forEach(i=>document.getElementById(i).addEventListener('input',calc));
+}
+
+function renderVentilationRows(rows){
+  return `<div class='vent-result-grid' role='table' aria-label='換氣量計算結果'>${rows.map((row)=>`<div class='vent-result-row' role='row'><div class='vent-col-item' role='cell'>${row.item}</div><div class='vent-col-value' role='cell'>${row.value}</div><div class='vent-col-unit' role='cell'>${row.unit}</div></div>`).join('')}</div>`;
+}
+function initVentilationTool(){const calc=()=>{const lm=toM(+l.value,ul.value),wm=toM(+w.value,uw.value),hm=toM(+h.value,uh.value),a=+ach.value;if(![lm,wm,hm,a].every(Number.isFinite)||a<=0){r.textContent='-';return;}const v=lm*wm*hm,cmh=v*a;r.innerHTML=renderVentilationRows([{item:'空間體積',value:format1(v),unit:'m³'},{item:'每小時換氣量',value:format1(cmh),unit:'CMH / m³/h'},{item:'每分鐘換氣量',value:format1(cmh/60),unit:'CMM / m³/min'},{item:'換算風量',value:format1(m3hToCfm(cmh)),unit:'CFM'}]);};['l','w','h','ul','uw','uh','ach'].forEach(i=>document.getElementById(i).addEventListener('input',calc));}
+function initCoolingLoadTool(){const calc=()=>{const length=parsePositiveNumberInput(cl.value);const width=parsePositiveNumberInput(cw.value);if(!length||!width){r.textContent='-';return;}const unitScale=toM(1,cu.value);const lengthM=length*unitScale,widthM=width*unitScale,areaM2=lengthM*widthM,areaFt2=areaM2*10.76391041671,ping=areaM2/3.3058;let kw,rt,btu;const method=cm.value;if(method==='Wm2'){const density=parsePositiveNumberInput(cd.value);if(!density){r.textContent='-';return;}kw=areaM2*density/1000;rt=kw/3.5168525;btu=kw*3412.142;}else{const pingPerRt=parsePositiveNumberInput(cpr.value);if(!pingPerRt){r.textContent='-';return;}rt=ping/pingPerRt;kw=rt*3.5168525;btu=kw*3412.142;}r.innerHTML=`面積：${format1(areaM2)} m²<br>面積：${format1(areaFt2)} ft²<br>坪數：${format1(ping)} 坪<br>冷負載：${format1(kw)} kW<br>冷負載：${format1(rt)} RT<br>冷負載：${format1(btu)} BTU/h<br>使用估算方式：${method==='Wm2'?'W/m²':'坪/RT'}`;};const syncMode=()=>{const isWm2=cm.value==='Wm2';cdWrap.style.display=isWm2?'':'none';cprWrap.style.display=isWm2?'none':'';calc();};['cl','cw','cu','cm','cd','cpr'].forEach(i=>document.getElementById(i).addEventListener('input',i==='cm'?syncMode:calc));syncMode();}
+function initDataCenterLoadTool(){ initDcSharedTool();}
+function initFeedbackTool(){}
+function renderMobileResultCards(headers, rows){
+  return `<div class='mobile-result-list'>${rows.map((cols)=>`<div class='mobile-result-card'>${headers.map((h,idx)=>`<div class='mobile-result-row'><span class='mobile-result-label'>${h}</span><span>${cols[idx]}</span></div>`).join('')}</div>`).join('')}</div>`;
+}
+function initDcSharedTool(){const calc=()=>{const vals=['rw','rr','rk','rl','rwid','rh','pp','uf','df','ld','or','vv','pf'].map(x=>+document.getElementById(x).value);if(!vals.every(Number.isFinite)){rrr.textContent='-';return;}const [rows,per,kw,l,w,h,p,u,dfv,ldv,otherR,v,pff]=vals;const m=unit.value==='cm'?0.01:1,L=l*m,W=w*m,H=h*m,area=L*W,vol=area*H,tr=rows*per,it=tr*kw,ups=it*u,dist=it*dfv,light=area*ldv/1000,people=p*0.1,totalHeatKw=it+ups+dist+light+people,itUpsSupply=it+ups,otherAuxPowerKw=it*otherR,totalHeatRt=totalHeatKw/RT_PER_KW,chillerKw=totalHeatRt*WATER_COOLED_HVAC_FACTORS.chiller,coolingTowerKw=totalHeatRt*WATER_COOLED_HVAC_FACTORS.coolingTower,chwPumpKw=totalHeatRt*WATER_COOLED_HVAC_FACTORS.chwPump,cwPumpKw=totalHeatRt*WATER_COOLED_HVAC_FACTORS.cwPump,ahuFanKw=totalHeatRt*WATER_COOLED_HVAC_FACTORS.ahuFan,totalCoolingPowerKw=chillerKw+coolingTowerKw+chwPumpKw+cwPumpKw+ahuFanKw,tp=itUpsSupply+totalCoolingPowerKw+otherAuxPowerKw,cur=(P)=>P*1000/(Math.sqrt(3)*v*pff),totalCurrentA=cur(tp),recommendedUpsKw=roundUpToStep(itUpsSupply,UPS_STEPS),recommendedCoolingRt=roundUpToMultiple(totalHeatRt,5),nfbDesignCurrentA=totalCurrentA*1.2,recommendedNfbA=roundUpToStep(nfbDesignCurrentA,NFB_STEPS),otherInfrastructureKw=dist+light+people+otherAuxPowerKw,facilityTotalKw=itUpsSupply+totalCoolingPowerKw+otherInfrastructureKw,pue=it>0?facilityTotalKw/it:null,pueHint=pue===null?'':pue<1.3?'理論值偏高效，仍需以實測電表確認。':pue<1.6?'理論值落在常見資料中心初估區間，仍需以實測確認。':'理論值偏高，建議檢查空調系統效率、泵浦與風機估算。';rrr.innerHTML=`<section id='dc-space' class='dc-section'><h3>A. 機房空間</h3><table class='mobile-hide'><tr><td>排數</td><td>${format1(rows)}</td></tr><tr><td>每排機櫃數</td><td>${format1(per)}</td></tr><tr><td>總機櫃數</td><td>${format1(tr)}</td></tr><tr><td>每櫃 kW</td><td>${format1(kw)}</td></tr><tr><td>面積 m²</td><td>${format1(area)}</td></tr><tr><td>坪數</td><td>${format1(area/3.3058)}</td></tr><tr><td>體積 m³</td><td>${format1(vol)}</td></tr></table>${renderMobileResultCards(['項目','數值'], [['排數',format1(rows)],['每排機櫃數',format1(per)],['總機櫃數',format1(tr)],['每櫃 kW',format1(kw)],['面積 m²',format1(area)],['坪數',format1(area/3.3058)],['體積 m³',format1(vol)]])}</section><section id='dc-heat' class='dc-section'><h3>B. 散熱評估</h3><table class='mobile-hide'><tr><th>項目</th><th>kW</th><th>RT</th></tr>${[['IT設備',it],['UPS（UPS 損耗 / 發熱）',ups],['配電系統',dist],['照明設施',light],['人員',people],['合計',totalHeatKw]].map(([n,vv])=>`<tr><td>${n}</td><td>${format1(vv)}</td><td>${format1(vv/RT_PER_KW)}</td></tr>`).join('')}</table>${renderMobileResultCards(['項目','kW','RT'], [['IT設備',format1(it),format1(it/RT_PER_KW)],['UPS（UPS 損耗 / 發熱）',format1(ups),format1(ups/RT_PER_KW)],['配電系統',format1(dist),format1(dist/RT_PER_KW)],['照明設施',format1(light),format1(light/RT_PER_KW)],['人員',format1(people),format1(people/RT_PER_KW)],['合計',format1(totalHeatKw),format1(totalHeatKw/RT_PER_KW)]])}</section><section id='dc-power' class='dc-section'><h3>C. 預估用電容量 / NFB 估算</h3><table class='mobile-hide'><tr><th>項目</th><th>kW</th><th>A</th></tr>${[['IT + UPS 損耗',itUpsSupply],['空調總用電',totalCoolingPowerKw],['其他基礎設施用電',otherInfrastructureKw],['合計',tp]].map(([n,vv])=>`<tr><td>${n}</td><td>${format1(vv)}</td><td>${format1(cur(vv))}</td></tr>`).join('')}</table><h4>空調總用電組成</h4><table><tr><th>項目</th><th>kW</th><th>A</th></tr><tr><td>冰水主機</td><td>${format1(chillerKw)} kW</td><td>${format1(cur(chillerKw))} A</td></tr><tr><td>冷卻水塔</td><td>${format1(coolingTowerKw)} kW</td><td>${format1(cur(coolingTowerKw))} A</td></tr><tr><td>冰水泵</td><td>${format1(chwPumpKw)} kW</td><td>${format1(cur(chwPumpKw))} A</td></tr><tr><td>冷卻水泵</td><td>${format1(cwPumpKw)} kW</td><td>${format1(cur(cwPumpKw))} A</td></tr><tr><td>空調箱 / 風機</td><td>${format1(ahuFanKw)} kW</td><td>${format1(cur(ahuFanKw))} A</td></tr><tr><td>合計</td><td>${format1(totalCoolingPowerKw)} kW</td><td>約 ${format1(cur(totalCoolingPowerKw))} A</td></tr></table><p class='muted'>空調總用電：${format1(totalCoolingPowerKw)} kW；空調總電流：約 ${format1(cur(totalCoolingPowerKw))} A</p></section><section id='dc-power-summary' class='dc-section'><h3>C-1. 總用電分析</h3>${renderMobileResultCards(['項目','數值'], [['IT + UPS 損耗',`${format1(itUpsSupply)} kW`],['空調總用電',`${format1(totalCoolingPowerKw)} kW`],['其他基礎設施用電',`${format1(otherInfrastructureKw)} kW`],['合計用電容量',`${format1(tp)} kW`],['合計電流',`約 ${format1(totalCurrentA)} A`]])}<table class='mobile-hide'><tr><td>IT + UPS 損耗</td><td>${format1(itUpsSupply)} kW</td></tr><tr><td>空調總用電</td><td>${format1(totalCoolingPowerKw)} kW</td></tr><tr><td>其他基礎設施用電</td><td>${format1(otherInfrastructureKw)} kW</td></tr><tr><td>合計用電容量</td><td>${format1(tp)} kW</td></tr><tr><td>合計電流</td><td>約 ${format1(totalCurrentA)} A</td></tr></table><p class='muted'>此處為供電容量初估，供 NFB / 幹線容量初步參考。</p></section><section id='dc-advice' class='dc-section'><h3>D. 建議配置</h3>${renderMobileResultCards(['項目','估算需求','建議配置'], [['UPS',`${format1(itUpsSupply)} kW`,`建議配置 ${format1(recommendedUpsKw)} kW`],['空調冷卻容量',`${format1(totalHeatKw)} kW / ${format1(totalHeatRt)} RT`,`建議配置 ${format1(recommendedCoolingRt)} RT`],['NFB / 幹線',`估算需求 ${format1(totalCurrentA)} A / 設計電流 ${format1(nfbDesignCurrentA)} A`,`建議配置 ${format1(recommendedNfbA)} A`]])}<table class='mobile-hide'><tr><th>項目</th><th>估算需求</th><th>建議配置</th></tr><tr><td>UPS</td><td>估算需求 ${format1(itUpsSupply)} kW</td><td>建議配置 ${format1(recommendedUpsKw)} kW</td></tr><tr><td>空調冷卻容量</td><td>估算需求 ${format1(totalHeatKw)} kW / ${format1(totalHeatRt)} RT</td><td>建議配置 ${format1(recommendedCoolingRt)} RT</td></tr><tr><td>NFB / 幹線</td><td>估算需求 ${format1(totalCurrentA)} A<br>設計電流 ${format1(nfbDesignCurrentA)} A</td><td>建議配置 ${format1(recommendedNfbA)} A</td></tr></table><p class='muted'>NFB 建議值已先乘 1.2 安全係數後再向上取常用級距。</p><p class='muted'>實際配置仍需依備援架構、設備型錄、保護協調、啟動電流與法規確認。</p></section>`;const buildPieSection=(title,ariaLabel,parts,colors)=>{let acc=0;const totalForChart=Math.max(parts.reduce((sum,[,val])=>sum+val,0),1);const slices=parts.map((pt,idx)=>{const frac=pt[1]/totalForChart;const start=acc*360-90;acc+=frac;const end=acc*360-90;const largeArc=frac>0.5?1:0;const rad=(deg)=>deg*Math.PI/180;const x1=100+80*Math.cos(rad(start)),y1=100+80*Math.sin(rad(start)),x2=100+80*Math.cos(rad(end)),y2=100+80*Math.sin(rad(end));const d=`M 100 100 L ${x1} ${y1} A 80 80 0 ${largeArc} 1 ${x2} ${y2} Z`;return `<path d='${d}' fill='${colors[idx]}'></path>`;}).join('');const legend=parts.map(([n,val],idx)=>`<tr><td><span class='legend-dot' style='background:${colors[idx]}'></span>${n}</td><td>${format1(val)}</td><td>${format1((val/totalForChart)*100)}%</td></tr>`).join('');return `<h3>${title}</h3><div class='heat-pie-wrap'><svg class='heat-pie' viewBox='0 0 200 200' role='img' aria-label='${ariaLabel}'>${slices}</svg><table class='pie-legend'><tr><th>項目</th><th>kW</th><th>百分比</th></tr>${legend}</table></div>`;};const heatParts=[['IT 設備',it],['UPS 損耗',ups],['配電系統',dist],['照明設施',light],['人員',people]],heatColors=['#2563eb','#16a34a','#f59e0b','#a855f7','#ef4444'];const powerParts=[['IT + UPS 損耗',itUpsSupply],['空調總用電',totalCoolingPowerKw],['其他基礎設施用電',otherInfrastructureKw]],powerColors=['#0284c7','#0f766e','#b45309'];bars.innerHTML=`<section id='dc-chart' class='dc-section'>${buildPieSection('E. 散熱比例圖','散熱比例圓餅圖',heatParts,heatColors)}${buildPieSection('F. 總用電比例圖','總用電比例圓餅圖',powerParts,powerColors)}</section><section id='dc-pue' class='dc-section'><h3>G. 理論 PUE</h3><table class='mobile-hide'><tr><td>IT 負載</td><td>${format1(it)} kW</td></tr><tr><td>空調總用電</td><td>${format1(totalCoolingPowerKw)} kW</td></tr><tr><td>其他基礎設施用電</td><td>${format1(otherInfrastructureKw)} kW</td></tr><tr><td>機房總用電初估</td><td>${format1(facilityTotalKw)} kW</td></tr><tr><td>理論 PUE</td><td>約 ${format1(pue)}</td></tr></table>${renderMobileResultCards(['項目','數值'], [['IT 負載',`${format1(it)} kW`],['空調總用電',`${format1(totalCoolingPowerKw)} kW`],['其他基礎設施用電',`${format1(otherInfrastructureKw)} kW`],['機房總用電初估',`${format1(facilityTotalKw)} kW`],['理論 PUE',`約 ${format1(pue)}`]])}<p class='muted'>${pueHint}</p><p class='muted'>此為理論 PUE 初估，未納入備援架構、部分負載效率、季節 COP、控制策略與實測電表差異。</p></section>`;};['rw','rr','rk','rl','rwid','rh','unit','pp','uf','df','ld','or','vv','pf'].forEach(i=>document.getElementById(i).addEventListener('input',calc));}
+
+const toolRegistry = {
+  temp:{title:'溫度換算',subtitle:'C、F、K 即時換算。',render:()=>`<div class='grid two'>${field('c','攝氏 °C')}${field('f','華氏 °F')}${field('k','絕對溫度 K')}</div>`,init:initTempTool},
+  flow:{title:'流量換算',subtitle:'L/s、L/min、CMH、CFM。',render:()=>`<div class='grid two'>${field('ls','L/s')}${field('lm','L/min')}${field('cmh','CMH / m³/h')}${field('cfm','CFM')}</div>`,init:initFlowTool},
+  press:{title:'壓力換算',subtitle:'Pa、kPa、bar、psi。',render:()=>`<div class='grid two'>${field('pa','Pa')}${field('kpa','kPa')}${field('bar','bar')}${field('psi','psi')}</div>`,init:initPressureTool},
+  vel:{title:'流速換算',subtitle:'m/s、km/h、ft/s。',render:()=>`<div class='grid two'>${field('ms','m/s')}${field('kmh','km/h')}${field('fts','ft/s')}</div>`,init:initVelocityTool},
+  punit:{title:'電力單位換算',subtitle:'W、kW、hp。',render:()=>`<div class='grid two'>${field('w','W')}${field('kw','kW')}${field('hp','hp')}</div>`,init:initPowerUnitTool},
+  pipe:{title:'水管管徑建議',subtitle:'依設計流量（LPM）建議管徑與流速。',render:()=>`<div class='grid two'>${field('qLpm','設計流量 LPM')}</div><div id='r' class='result-box'>-</div><p class='note'>3 m/s 僅作為設計選管建議值，實際設計仍需依現場條件複核。</p>`,init:initPipeSuggestTool},
+  dp:{title:'壓差估算流量',subtitle:'空調設備運轉中，依現場實測進出水壓差，快速估算目前水量。',render:()=>`<div class='grid two'>${field('measuredDp','目前量測壓差')}${selectField('measuredUnit','量測壓差單位',`<option>Pa</option><option selected>kPa</option><option>mH2O</option><option>bar</option>`)}${selectField('pipeUsed','使用管徑',PIPE_SIZE_OPTIONS.map(p=>`<option value='${p.id}'>${p.label}</option>`).join(''))}</div><div id='r' class='result-box'><b>A. 現場初估</b><br>-</div><div class='result-box subtle'><b>進階設定</b><div class='muted'>設備型錄 / TAB 參考點可在最後做進階修正，非必填。</div><div class='grid two'>${field('refFlow','參考流量（LPM）')}${field('refDp','參考壓損')}${selectField('refDpUnit','壓損單位',`<option>Pa</option><option selected>kPa</option><option>mH2O</option><option>bar</option>`)}</div><div id='advResult'></div></div>`,init:initDpFlowTool},
+  vent:{title:'換氣量計算',subtitle:'依長寬高與ACH估算',render:()=>`<div class='grid two'>${field('l','室內長度')}${selectField('ul','長度單位',`<option value='m'>m</option><option value='cm'>cm</option>`)}${field('w','室內寬度')}${selectField('uw','寬度單位',`<option value='m'>m</option><option value='cm'>cm</option>`)}${field('h','室內高度')}${selectField('uh','高度單位',`<option value='m'>m</option><option value='cm'>cm</option>`)}${field('ach','換氣次數 ACH')}</div><div id='r' class='result-box'>-</div>`,init:initVentilationTool},
+  cool:{title:'冷負載估算',subtitle:'依長寬與估算方式初估',render:()=>`<div class='grid two'>${field('cl','長度')}${field('cw','寬度')}${selectField('cu','尺寸單位',`<option value='m'>m</option><option value='cm'>cm</option><option value='ft'>ft</option>`)}${selectField('cm','冷負載估算方式',`<option value='Wm2'>W/m²</option><option value='pingRT'>坪/RT</option>`)}</div><div id='cdWrap'>${field('cd','冷負載密度 W/m²','','150')}</div><div id='cprWrap' style='display:none'>${field('cpr','幾坪一 RT','','4')}</div><div id='r' class='result-box'>-</div>`,init:initCoolingLoadTool},
+  dc:{title:'機房 / 資料中心整合估算',subtitle:'負載、散熱、用電容量、建議配置與 PUE。',render:()=>`<div class='grid three'>${field('rw','排數','例如 5','','機櫃排列的排數')}${field('rr','每排機櫃數','例如 10')}${field('rk','每櫃功率 kW','例如 2','','每一櫃 IT 設備功率')}${field('rl','機房長度','例如 13.2')}${field('rwid','機房寬度','例如 10.2')}${field('rh','機房高度','例如 3.0')}${selectField('unit','長寬高單位',`<option value='m'>m</option><option value='cm'>cm</option>`)}${field('pp','人員數','','5')}${field('uf','UPS 發熱係數','','0.09')}${field('df','配電系統發熱係數','','0.03')}${field('ld','照明密度 W/m²','','21.53')}${field('or','其他用電比例','','0.14')}${field('vv','電壓 V','','380')}${field('pf','功率因數 PF','','0.95')}</div><div class='dc-nav'><a class='dc-nav-btn' href='#dc-space'>空間</a><a class='dc-nav-btn' href='#dc-heat'>散熱</a><a class='dc-nav-btn' href='#dc-power'>用電</a><a class='dc-nav-btn' href='#dc-advice'>建議</a><a class='dc-nav-btn' href='#dc-chart'>圖表</a><a class='dc-nav-btn' href='#dc-pue'>PUE</a></div><div id='rrr' class='result-box'>-</div><div class='table-wrap'><div id='bars'></div></div><p class='source'>資料來源：<br>${sourceText}</p>`,init:initDataCenterLoadTool},
+  kwi:{title:'kW估算電流',subtitle:'提供單相與三相電流估算。',render:()=>`<div class='grid two'>${selectField('powerTypeK','電源型式',`<option value='three' selected>三相</option><option value='single'>單相</option>`)}${field('pk','功率 kW','例如 20')}${field('vk','電壓 V','例如 380','380')}${field('pfk','功率因數 PF','','0.95')}</div><div id='r' class='result-box'>-</div>`,init:initKwiTool},
+  feedback:{title:'意見回饋',subtitle:'回報問題與建議。',render:()=>`<div class='result-box'><a class='btn' href='https://docs.google.com/forms/d/e/1FAIpQLSc95R0vPbKHLP9kP4MkCxsTVxk0aHTw4iCqlEHNb-Aa6RSWNQ/viewform' target='_blank' rel='noopener noreferrer'>Google Form 回饋</a><a class='btn secondary' href='mailto:chttwm@gmail.com'>Email 備援回饋</a></div>`,init:initFeedbackTool}
+};
+
+function openTool(id){ const normalizedId=({heat:'dc',power:'dc'})[id]||id; const cfg=toolRegistry[normalizedId]; if(!cfg)return; panel(cfg.title,cfg.subtitle,cfg.render()); cfg.init(); }
+
+renderHome();

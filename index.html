@@ -1,15 +1,31 @@
 <!doctype html>
 <html lang="zh-Hant">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HVAC Unit Converter Web V1.1</title>
-  <meta name="description" content="HVAC Unit Converter Web V1.1 正式版工具組" />
-  <link rel="stylesheet" href="styles.css?v=20260509-web-v11-full" />
-</head>
-<body>
-  <main class="container" id="app"></main>
-  <script src="./src/data/pipeSizes.js"></script>
-  <script src="./app.js?v=20260509-web-v11-full"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HVAC 空調機房工程工具 V1.1</title>
+    <link rel="stylesheet" href="./styles.css?v=20260509-feedback-fix" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <p class="version">Web V1.1</p>
+        <h1>HVAC 空調機房工程工具</h1>
+        <p class="subtitle">空調換算、換氣量、機房散熱、用電與資料中心工程初估</p>
+      </header>
+      <section id="home" class="tool-card active">
+        <h2>工程功能總覽</h2>
+        <div class="category"><h3>A. 機房 / 資料中心估算</h3><div class="card-grid" data-group="A"></div></div>
+        <div class="category"><h3>B. 空調與通風估算</h3><div class="card-grid" data-group="B"></div></div>
+        <div class="category"><h3>C. 水系統估算</h3><div class="card-grid" data-group="C"></div></div>
+        <div class="category"><h3>D. 電力估算</h3><div class="card-grid" data-group="D"></div></div>
+        <div class="category"><h3>E. 基礎單位換算</h3><div class="card-grid" data-group="E"></div></div>
+        <div class="category"><h3>F. 其他</h3><div class="card-grid" data-group="F"></div></div>
+      </section>
+      <section id="tool" class="tool-card"></section>
+      <div class="result-box note">本工具為工程初估用途，實際設計請由專業人員依現場條件複核。</div>
+    </main>
+    <script src="./src/data/pipeSizes.js"></script>
+    <script src="./app.js?v=20260509-feedback-fix"></script>
+  </body>
 </html>
