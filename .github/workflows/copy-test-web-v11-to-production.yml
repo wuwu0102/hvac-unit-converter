@@ -1,16 +1,13 @@
-name: Copy Full Test Web V1.1 To Production
+name: Copy Test Web V1.1 To Production
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 permissions:
   contents: write
 
 jobs:
-  sync-full-web-v11:
+  sync-web-v11:
     runs-on: ubuntu-latest
 
     steps:
@@ -26,55 +23,60 @@ jobs:
           ref: main
           path: test-src
 
-      - name: Fully sync Web V1.1 content (exclude README/.git/GitHub Pages settings)
+      - name: Sync only web production files
         shell: bash
         run: |
           set -euo pipefail
 
-          # Remove all tracked production files except protected ones.
+          # Recreate production tree with only protected root files kept.
           find production -mindepth 1 -maxdepth 1 \
             ! -name '.git' \
             ! -name 'README.md' \
             ! -name '.nojekyll' \
             -exec rm -rf {} +
 
-          # Copy all test content except protected exclusions.
+          # Allowlist copy: copy only files/folders required by web production.
+          # Explicitly avoid .github and workflow files.
           rsync -a --delete \
-            --exclude='.git/' \
-            --exclude='README.md' \
-            --exclude='.nojekyll' \
+            --exclude='*' \
+            --include='index.html' \
+            --include='styles.css' \
+            --include='app.js' \
+            --include='package.json' \
+            --include='package-lock.json' \
+            --include='smoke-test.js' \
+            --include='src/***' \
+            --include='docs/***' \
+            --include='scripts/***' \
             test-src/ production/
 
-      - name: Validate optional full-sync targets (skip when missing)
+          # Defensive cleanup for forbidden paths/files.
+          rm -rf \
+            production/.github \
+            production/android \
+            production/ios \
+            production/web \
+            production/lib \
+            production/test \
+            production/legacy-web
+
+          rm -f \
+            production/analysis_options.yaml \
+            production/pubspec.yaml \
+            production/ExportOptions.plist
+
+          # Defensive cleanup for any workflow yml/yaml that might slip in.
+          find production -type f \( -name '*.yml' -o -name '*.yaml' \) \
+            -path '*/.github/workflows/*' -delete
+
+      - name: Validate no workflow files are synced
         shell: bash
-        working-directory: production
         run: |
           set -euo pipefail
 
-          synced_paths=(
-            index.html
-            app.js
-            styles.css
-            src
-            assets
-            data
-            feedback
-            scripts
-          )
-
-          for p in "${synced_paths[@]}"; do
-            if [ -e "$p" ]; then
-              echo "Synced path detected: $p"
-            else
-              echo "Synced path missing, skipping: $p"
-            fi
-          done
-
-          if [ -f app.js ] || [ -f index.html ]; then
-            rg -Fq "feedback" app.js index.html || echo "feedback feature markers missing (non-blocking)"
-            rg -Fq "data center" app.js index.html || true
-          else
-            echo "app.js/index.html not found; skip marker checks"
+          if find production/.github/workflows -type f \( -name '*.yml' -o -name '*.yaml' \) 2>/dev/null | grep -q .; then
+            echo "Error: workflow files were copied into production sync output"
+            exit 1
           fi
 
       - name: Commit synced changes
@@ -86,9 +88,15 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
+          if git status --porcelain | grep -qE '^.. \.github/workflows/'; then
+            echo "Error: .github/workflows changes detected in sync output"
+            git status --porcelain
+            exit 1
+          fi
+
           if [ -n "$(git status --porcelain)" ]; then
             git add -A
-            git commit -m "sync full test web v1.1 to production"
+            git commit -m "sync test web v1.1 to production (exclude workflows)"
             git push origin HEAD:main
           else
             echo "No changes to commit"
