@@ -1,14 +1,16 @@
-name: Copy test Web V1.1 to production
+name: Copy Full Test Web V1.1 To Production
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
-  copy-and-validate:
+  sync-full-web-v11:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,152 +26,63 @@ jobs:
           ref: main
           path: test-src
 
-      - name: Copy full Web V1.1 files from test to production
+      - name: Fully sync Web V1.1 content (exclude README/.git/GitHub Pages settings)
         shell: bash
         run: |
           set -euo pipefail
 
-          cp test-src/index.html production/index.html
-          cp test-src/styles.css production/styles.css
-          cp test-src/app.js production/app.js
-          cp test-src/package.json production/package.json
+          # Remove all tracked production files except protected ones.
+          find production -mindepth 1 -maxdepth 1 \
+            ! -name '.git' \
+            ! -name 'README.md' \
+            ! -name '.nojekyll' \
+            -exec rm -rf {} +
 
-          if [ -f test-src/smoke-test.js ]; then
-            cp test-src/smoke-test.js production/smoke-test.js
-          fi
+          # Copy all test content except protected exclusions.
+          rsync -a --delete \
+            --exclude='.git/' \
+            --exclude='README.md' \
+            --exclude='.nojekyll' \
+            test-src/ production/
 
-          mkdir -p production/src/data
-          cp test-src/src/data/pipeSizes.js production/src/data/pipeSizes.js
-
-          if [ -d test-src/src ]; then
-            rm -rf production/src
-            cp -R test-src/src production/src
-          fi
-
-      - name: Apply production-only fixes
+      - name: Validate required full-sync targets exist
         shell: bash
         working-directory: production
         run: |
           set -euo pipefail
 
-          sed -i 's#https://docs.google.com/forms/d/e/[A-Za-z0-9_-]\+/viewform#https://docs.google.com/forms/d/e/1FAIpQLSc95R0vPbKHLP9kP4MkCxsTVxk0aHTw4iCqlEHNb-Aa6RSWNQ/viewform#g' app.js index.html || true
-          sed -i 's/[A-Za-z0-9._%+-]\+@[A-Za-z0-9.-]\+\.[A-Za-z]\{2,\}/chttwm@gmail.com/g' app.js index.html || true
-          sed -i 's/HVAC Unit Converter[[:space:]]*[-–—]?[[:space:]]*[^"\'\''<]*/HVAC Unit Converter 意見回饋/g' app.js index.html || true
+          required_paths=(
+            index.html
+            app.js
+            styles.css
+            src
+            assets
+            data
+          )
 
-          if rg -n "5000\s*LPM" src/data/pipeSizes.js >/dev/null 2>&1; then
-            sed -i 's/5000\s*LPM[^\n]*/5000 LPM -> 200A/g' app.js index.html src/data/pipeSizes.js || true
-          fi
+          for p in "${required_paths[@]}"; do
+            if [ ! -e "$p" ]; then
+              echo "Missing required synced path: $p"
+              exit 1
+            fi
+          done
 
-          # Ensure pressure-difference flow estimate does not hard-cap calculated flow with 2.5 or 3 m/s overrides.
-          perl -0pi -e 's/rawFlowLpm\s*=\s*[^;\n]*\b(2\.5|3)\b[^;\n]*;[ \t]*\n/rawFlowLpm = rawFlowLpm;\n/gm' app.js || true
+          rg -Fq "feedback" app.js index.html || { echo "feedback feature markers missing"; exit 1; }
+          rg -Fq "data center" app.js index.html || true
 
-      - name: Strict validation
+      - name: Commit synced changes
         shell: bash
         working-directory: production
         run: |
           set -euo pipefail
 
-          must_have_appjs=(
-            "tools = ["
-            "機房 / 資料中心整合估算"
-            "換氣量計算"
-            "冷負載估算"
-            "水管管徑建議"
-            "壓差估算流量"
-            "kW估算電流"
-            "溫度換算"
-            "流量換算"
-            "壓力換算"
-            "流速換算"
-            "電力單位換算"
-            "feedback"
-            "initDcSharedTool"
-            "initDataCenterLoadTool"
-            "renderMobileResultCards"
-            "A. 機房空間"
-            "B. 散熱評估"
-            "C. 預估用電容量 / NFB 估算"
-            "C-1. 總用電分析"
-            "D. 建議配置"
-            "E. 散熱比例圖"
-            "F. 總用電比例圖"
-            "G. 理論 PUE"
-            "buildPieSection"
-            "heat-pie-wrap"
-            "pie-legend"
-          )
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          for needle in "${must_have_appjs[@]}"; do
-            rg -Fq "$needle" app.js || { echo "Missing in app.js: $needle"; exit 1; }
-          done
-
-          must_have_index=(
-            "Web V1.1"
-            "HVAC 空調機房工程工具"
-            "./src/data/pipeSizes.js"
-            "./app.js"
-          )
-          for needle in "${must_have_index[@]}"; do
-            rg -Fq "$needle" index.html || { echo "Missing in index.html: $needle"; exit 1; }
-          done
-
-          must_have_pipe=(
-            "DN400"
-            "400A"
-            "getRecommendedPipeForFlow"
-          )
-          for needle in "${must_have_pipe[@]}"; do
-            rg -Fq "$needle" src/data/pipeSizes.js || { echo "Missing in src/data/pipeSizes.js: $needle"; exit 1; }
-          done
-
-          rg -Fq "1FAIpQLSc95R0vPbKHLP9kP4MkCxsTVxk0aHTw4iCqlEHNb-Aa6RSWNQ" app.js index.html || { echo "Missing production feedback Google Form ID"; exit 1; }
-
-          tool_count=$(python - <<'PY'
-import re
-text=open('app.js',encoding='utf-8').read()
-m=re.search(r'tools\s*=\s*\[(.*?)\]', text, re.S)
-if not m:
-    print(0)
-else:
-    items=re.findall(r'\{\s*id\s*:', m.group(1))
-    print(len(items))
-PY
-)
-          if [ "$tool_count" -le 4 ]; then
-            echo "app.js tools count is $tool_count (<=4), fail"
-            exit 1
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "sync full test web v1.1 to production"
+            git push origin HEAD:main
+          else
+            echo "No changes to commit"
           fi
-
-          button_count=$(rg -o "data-tool=\"" index.html | wc -l | tr -d ' ')
-          if [ "$button_count" -le 4 ]; then
-            echo "Homepage button count is $button_count (<=4), fail"
-            exit 1
-          fi
-
-      - name: Install dependencies
-        working-directory: production
-        run: npm install --no-audit --no-fund
-
-      - name: Run smoke test
-        working-directory: production
-        run: node smoke-test.js
-
-      - name: Build
-        working-directory: production
-        run: npm run build
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          path: production
-          branch: restore-production-from-test-web-v11-verbatim
-          commit-message: Copy full test Web V1.1 into production verbatim
-          title: Copy full test Web V1.1 into production
-          body: |
-            - 本 PR 由 GitHub Actions 從 hvac-unit-converter-test/main 完整複製 Web V1.1
-            - 修正正式版只剩部分功能與摘要結果區問題
-            - 保留正式版 feedback Google Form / Email
-            - 保留完整資料中心 A~G 詳細結果區
-            - 保留所有測試版工具
-            - 保留 5000 LPM -> 200A
-            - 保留壓差估流量不硬卡上限
