@@ -18,7 +18,15 @@
     { id: 'DN400', label: '400A', nominalA: '400A', nominalMm: 400, innerDiameterMm: 381.0 }
   ];
 
-  const getPipeSizeById = (id) => PIPE_SIZE_OPTIONS.find((item) => item.id === id) || null;
+  const normalizePipeKey = (value) => String(value ?? '').trim().toUpperCase();
+  const getPipeSizeById = (id) => {
+    const key = normalizePipeKey(id);
+    if (!key) return null;
+    return PIPE_SIZE_OPTIONS.find((item) => {
+      const candidates = [item.id, item.nominalA, item.label, item.a];
+      return candidates.some((candidate) => normalizePipeKey(candidate) === key);
+    }) || null;
+  };
   const calculateVelocityFromLpmAndDiameter = (lpm, innerDiameterMm) => {
     if (!Number.isFinite(lpm) || !Number.isFinite(innerDiameterMm) || lpm <= 0 || innerDiameterMm <= 0) return null;
     const flowM3s = lpm / 1000 / 60;
