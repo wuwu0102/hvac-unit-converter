@@ -8,10 +8,11 @@ const FEEDBACK_MAILTO = 'mailto:chttwm@gmail.com?subject=HVAC%20Unit%20Converter
 
 
 const DISPLAY_MODE_KEY = 'hvacDisplayMode';
-const DISPLAY_MODES = new Set(['large', 'normal', 'compact']);
+const DISPLAY_MODES = new Set(['large', 'compact']);
 
 function applyDisplayMode(mode){
-  const safeMode = DISPLAY_MODES.has(mode) ? mode : 'large';
+  const normalizedMode = mode === 'normal' ? 'large' : mode;
+  const safeMode = DISPLAY_MODES.has(normalizedMode) ? normalizedMode : 'large';
   document.documentElement.dataset.displayMode = safeMode;
   document.querySelectorAll('[data-display-mode]').forEach((button)=>{
     button.classList.toggle('active', button.dataset.displayMode === safeMode);
