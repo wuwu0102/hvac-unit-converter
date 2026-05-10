@@ -6,6 +6,34 @@ const sourceText = '依據：APC－計算數據中心製冷量';
 const FEEDBACK_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSc95R0vPbKHLP9kP4MkCxsTVxk0aHTw4iCqlEHNb-Aa6RSWNQ/viewform';
 const FEEDBACK_MAILTO = 'mailto:chttwm@gmail.com?subject=HVAC%20Unit%20Converter%20%E6%84%8F%E8%A6%8B%E5%9B%9E%E9%A5%8B';
 
+
+const DISPLAY_MODE_KEY = 'hvacDisplayMode';
+const DISPLAY_MODES = new Set(['large', 'normal', 'compact']);
+
+function applyDisplayMode(mode){
+  const safeMode = DISPLAY_MODES.has(mode) ? mode : 'large';
+  document.documentElement.dataset.displayMode = safeMode;
+  document.querySelectorAll('[data-display-mode]').forEach((button)=>{
+    button.classList.toggle('active', button.dataset.displayMode === safeMode);
+  });
+  return safeMode;
+}
+
+function initDisplayMode(){
+  const savedMode = localStorage.getItem(DISPLAY_MODE_KEY);
+  const initialMode = applyDisplayMode(savedMode || 'large');
+  if (savedMode !== initialMode) {
+    localStorage.setItem(DISPLAY_MODE_KEY, initialMode);
+  }
+
+  document.querySelectorAll('[data-display-mode]').forEach((button)=>{
+    button.addEventListener('click', ()=>{
+      const mode = applyDisplayMode(button.dataset.displayMode);
+      localStorage.setItem(DISPLAY_MODE_KEY, mode);
+    });
+  });
+}
+
 const parseNumber = (raw) => {
   const text = String(raw ?? '').trim();
   if (text === '' || text === '-' || text === '.') return null;
@@ -152,4 +180,5 @@ const toolRegistry = {
 
 function openTool(id){ const normalizedId=({heat:'dc',power:'dc'})[id]||id; const cfg=toolRegistry[normalizedId]; if(!cfg)return; panel(cfg.title,cfg.subtitle,cfg.render()); cfg.init(); }
 
+initDisplayMode();
 renderHome();
