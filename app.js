@@ -167,11 +167,7 @@ function renderResultBlock(headers, rows){
   const safeHeaders = Array.isArray(headers) ? headers : [];
   const safeRows = Array.isArray(rows) ? rows : [];
 
-  if (isCompactMode()) {
-    return `<div class='compact-result-wrap'><table class='compact-result-table'><thead><tr>${safeHeaders.map((h)=>`<th>${h ?? ''}</th>`).join('')}</tr></thead><tbody>${safeRows.map((row)=>`<tr>${safeHeaders.map((_,idx)=>`<td>${row?.[idx] ?? ''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
-  }
-
-  return `<div class='mobile-result-list'>${safeRows.map((row)=>`<div class='mobile-result-card'>${safeHeaders.map((h,idx)=>`<div class='mobile-result-row'><span class='mobile-result-label'>${h ?? ''}</span><span>${row?.[idx] ?? ''}</span></div>`).join('')}</div>`).join('')}</div>`;
+  return `<div class='large-result-list'>${safeRows.map((row)=>`<div class='large-result-card'>${safeHeaders.map((h,idx)=>`<div class='large-result-row'><span class='large-result-label'>${h ?? ''}</span><span>${row?.[idx] ?? ''}</span></div>`).join('')}</div>`).join('')}</div><div class='compact-result-wrap'><table class='compact-result-table'><thead><tr>${safeHeaders.map((h)=>`<th>${h ?? ''}</th>`).join('')}</tr></thead><tbody>${safeRows.map((row)=>`<tr>${safeHeaders.map((_,idx)=>`<td>${row?.[idx] ?? ''}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 
 function renderMobileResultCards(headers, rows){
