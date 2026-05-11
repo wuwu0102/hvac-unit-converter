@@ -1,0 +1,6 @@
+{
+  "appId": "com.chttwm.hvacunitconverter",
+  "appName": "HVAC Unit Converter",
+  "webDir": "dist-mobile",
+  "bundledWebRuntime": false
+}
