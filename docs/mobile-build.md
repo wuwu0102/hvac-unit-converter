@@ -11,9 +11,16 @@
 ```bash
 npm install
 npm run mobile:sync
-npm run mobile:android
-npm run mobile:ios
 ```
+
+## 常用指令
+
+- 一般開發測試（同步到 iOS / Android 專案）：`npm run mobile:sync`
+- Android Studio 開啟原生專案：`npm run mobile:android`
+- Xcode 開啟原生專案：`npm run mobile:ios`
+- CI 或不想自動打開 IDE：
+  - `npm run mobile:sync:android`
+  - `npm run mobile:sync:ios`
 
 ## 開啟原生專案
 
