@@ -41,6 +41,12 @@ input,select,textarea{display:block;width:100%;max-width:100%;min-width:0;min-he
 html[data-display-mode='compact'] .dc-section{padding:8px 10px;margin:6px 0;border:1px solid var(--line);border-radius:8px;background:#fff}
 html[data-display-mode='compact'] .dc-section h3{font-size:1rem;margin:0 0 6px}
 html[data-display-mode='compact'] .dc-section h4{font-size:.9rem;margin:4px 0}
+html[data-display-mode='compact'] .shell{padding:12px}
+html[data-display-mode='compact'] .tool-card{padding:10px}
+html[data-display-mode='compact'] .dc-nav{gap:4px}
+html[data-display-mode='compact'] .dc-nav-btn{padding:6px 10px;font-size:.8rem}
+html[data-display-mode='compact'] .entry{min-height:44px}
+html[data-display-mode='compact'] input,html[data-display-mode='compact'] select,html[data-display-mode='compact'] button{min-height:44px}
 html[data-display-mode='compact'] table{margin-bottom:6px}
 html[data-display-mode='compact'] th,html[data-display-mode='compact'] td{padding:4px 6px;font-size:.82rem;border-color:#dbe2ea}
 html[data-display-mode='compact'] .mobile-result-list,html[data-display-mode='compact'] .mobile-result-card{display:none!important}
