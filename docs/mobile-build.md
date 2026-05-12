@@ -43,3 +43,12 @@ npm run mobile:sync
 - 下載後解壓縮取得 app-debug.apk
 - APK 只能安裝在 Android 手機，iPhone 不能安裝 APK
 
+## Android workflow 補充（避免不完整 android/ 導致 build 失敗）
+
+`Android APK Build` workflow 在建置前會檢查以下關鍵檔案是否存在：
+
+- `android/gradlew`
+- `android/app/build.gradle`
+- `android/settings.gradle`
+
+只要缺少任一檔案，就視為 Android 專案不完整，workflow 會先刪除 `android/`，再重新執行 `npx cap add android`，避免 `./gradlew assembleDebug` 因半套目錄失敗。
