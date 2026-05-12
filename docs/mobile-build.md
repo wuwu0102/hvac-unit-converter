@@ -1,38 +1,38 @@
 # Mobile Build Guide (Capacitor)
 
-## 保持 Web 版不受影響
+## Web 版不受影響
 
-- 既有 Web 版（GitHub Pages）仍然使用專案根目錄的靜態網站檔案（例如 `index.html`、`app.js`、`styles.css`）。
-- `npm run build` 行為維持原樣，只做靜態檢查，不做 bundling。
-- Capacitor App 使用 `dist-mobile/` 作為 App 內嵌網頁來源，**不會**改變 GitHub Pages 的來源。
+- 既有 GitHub Pages Web 版仍使用原本的網站檔案與流程，不改來源到 `dist-mobile/`。
+- `npm run build` 維持原本靜態檢查用途。
+- Capacitor App 僅使用 `dist-mobile/` 作為行動 App 內嵌網頁內容。
 
-## App 打包流程
+## GitHub Actions：Mobile Build
+
+專案新增獨立的 **Mobile Build** workflow，不影響原本的 Web Build Check。
+
+- Android job 會產生 debug APK。
+- iOS job 先做專案與 workspace 檢查，不做簽章與 archive。
+
+### 下載 Android 測試 APK
+
+1. 到 GitHub Actions 的 **Mobile Build** workflow run。
+2. 在 Artifacts 下載 `android-debug-apk`。
+3. 解壓後取得 `app-debug.apk` 安裝測試。
+
+## iOS 本機測試
+
+iOS 需要 Mac + Xcode：
+
+1. 執行 `npm run mobile:sync`（或 `npm run mobile:sync:ios`）。
+2. 用 Xcode 開啟 `ios/App/App.xcworkspace`。
+3. 選擇模擬器或實機進行測試。
+
+## Web 更新後同步到 App
+
+每次 Web 內容更新後，請重新同步：
 
 ```bash
-npm install
 npm run mobile:sync
 ```
 
-## 常用指令
-
-- 一般開發測試（同步到 iOS / Android 專案）：`npm run mobile:sync`
-- Android Studio 開啟原生專案：`npm run mobile:android`
-- Xcode 開啟原生專案：`npm run mobile:ios`
-- CI 或不想自動打開 IDE：
-  - `npm run mobile:sync:android`
-  - `npm run mobile:sync:ios`
-
-## 開啟原生專案
-
-- Android：使用 Android Studio 開啟 `android/`。
-- iOS：使用 Xcode 開啟 `ios/`。
-
-## Web 更新後如何同步到 App
-
-每次 Web 版更新後，只要重新執行：
-
-```bash
-npm run mobile:sync
-```
-
-此指令會先重新產生 `dist-mobile/`，再同步到 iOS / Android 專案。
+此指令會先重建 `dist-mobile/`，再同步到 Android / iOS 專案。
