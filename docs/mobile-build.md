@@ -36,3 +36,10 @@ npm run mobile:sync
 ```
 
 此指令會先重建 `dist-mobile/`，再同步到 Android / iOS 專案。
+
+## Android APK 下載方式
+
+- GitHub → Actions → Android APK Build → 最新成功紀錄 → Artifacts → hvac-unit-converter-android-debug-apk
+- 下載後解壓縮取得 app-debug.apk
+- APK 只能安裝在 Android 手機，iPhone 不能安裝 APK
+
