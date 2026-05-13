@@ -5,18 +5,6 @@
   "scripts": {
     "build": "node -e \"console.log('Static site build check: no bundling required.');\"",
     "check:engineering": "node scripts/engineering-self-check.js",
-    "test": "node --test test/pressure-flow.test.js test/mobile-layout.test.js",
-    "mobile:prepare": "node scripts/prepare-capacitor-web.js",
-    "mobile:sync": "npm run mobile:prepare && npx cap sync",
-    "mobile:android": "npm run mobile:prepare && npx cap sync android && npx cap open android",
-    "mobile:ios": "npm run mobile:prepare && npx cap sync ios && npx cap open ios",
-    "mobile:sync:android": "npm run mobile:prepare && npx cap sync android",
-    "mobile:sync:ios": "npm run mobile:prepare && npx cap sync ios"
-  },
-  "devDependencies": {
-    "@capacitor/android": "^7.4.3",
-    "@capacitor/cli": "^7.4.3",
-    "@capacitor/core": "^7.4.3",
-    "@capacitor/ios": "^7.4.3"
+    "test": "node --test test/pressure-flow.test.js test/mobile-layout.test.js"
   }
 }
